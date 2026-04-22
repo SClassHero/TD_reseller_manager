@@ -1,0 +1,38 @@
+<table class="table">
+    <thead>
+        <tr>
+            <th>Code</th>
+            <th>Date</th>
+            <th>Original Order</th>
+            <th>Customer</th>
+            <th>Reason</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for return_item in returns %}
+            <tr>
+                <td><strong>{{ return_item['return_code'] }}</strong></td>
+                <td>{{ return_item['return_date'] }}</td>
+                <td>
+                    <a href="{{ url_for('orders.order_detail', id=return_item['original_order_id']) }}">
+                        {{ return_item['order_code'] }}
+                    </a>
+                </td>
+                <td>{{ return_item['customer_name'] }}</td>
+                <td>
+                    {% if return_item['return_reason'] %}
+                        {{ return_item['return_reason'][:50] }}{% if return_item['return_reason']|length > 50 %}...{% endif %}
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('returns.return_detail', id=return_item['id']) }}" class="btn btn-sm btn-outline">
+                        View
+                    </a>
+                </td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>

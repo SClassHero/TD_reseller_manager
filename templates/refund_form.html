@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}{% if refund %}Edit {{ refund['refund_code'] }}{% else %}Create Refund{% endif %} - Inventory Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{% if refund %}Edit Refund — {{ refund['refund_code'] }}{% else %}Create Refund{% endif %}</h1>
+</div>
+
+<form method="POST"
+      action="{% if refund %}{{ url_for('refunds.update_refund', id=refund['id']) }}{% else %}{{ url_for('refunds.create_refund') }}{% endif %}"
+      class="card">
+    <div class="card-body">
+        <div class="form-grid">
+
+            <!-- Select Order -->
+            <div class="form-group">
+                <label for="order_id">Order *</label>
+                <select id="order_id" name="order_id" class="form-input" required>
+                    <option value="">-- Select an Order --</option>
+                    {% for order in orders %}
+                        <option value="{{ order['id'] }}"
+                                {% if refund and refund['order_id'] == order['id'] %}selected{% endif %}>
+                            {{ order['order_code'] }} — {{ order['customer_name'] }} ({{ order['total_amount']|vnd }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Link to Return (optional) -->
+            <div class="form-group">
+                <label for="return_id">Linked Return <span class="text-muted" style="font-size:0.85em;">(optional)</span></label>
+                <select id="return_id" name="return_id" class="form-input">
+                    <option value="">-- No return (refund only) --</option>
+                    {% for ret in returns %}
+                        <option value="{{ ret['id'] }}"
+                                data-order-id="{{ ret['original_order_id'] }}"
+                                {% if refund and refund['return_id'] == ret['id'] %}selected{% endif %}>
+                            {{ ret['return_code'] }} (Order: {{ ret['order_code'] }})
+                        </option>
+                    {% endfor %}
+                </select>
+                <p class="text-muted" style="font-size:0.85em; margin-top:0.4em;">
+                    Link to a return if items were sent back. Leave blank for price adjustments, goodwill refunds, etc.
+                </p>
+            </div>
+
+            <!-- Refund Amount -->
+            <div class="form-group">
+                <label for="amount">Refund Amount *</label>
+                <input type="number"
+                       id="amount"
+                       name="amount"
+                       class="form-input"
+                       min="0.01"
+                       step="1"
+                       placeholder="0"
+                       value="{{ refund['amount'] if refund else '' }}"
+                       required>
+            </div>
+
+            <!-- Refund Date -->
+            <div class="form-group">
+                <label for="refund_date">Refund Date</label>
+                <input type="date"
+                       id="refund_date"
+                       name="refund_date"
+                       class="form-input"
+                       value="{% if refund and refund['refund_date'] %}{{ refund['refund_date'][:10] }}{% endif %}">
+                <small class="text-muted">Leave blank to keep the existing date.</small>
+            </div>
+
+            <!-- Refund Method -->
+            <div class="form-group">
+                <label for="refund_method">Refund Method</label>
+                <select id="refund_method" name="refund_method" class="form-input">
+                    <option value="">-- Select Method --</option>
+                    {% for val, label in [
+                        ('cash',          'Cash'),
+                        ('bank_transfer', 'Bank Transfer'),
+                        ('check',         'Check'),
+                        ('credit',        'Store Credit')
+                    ] %}
+                        <option value="{{ val }}"
+                                {% if refund and refund['refund_method'] == val %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Reason -->
+            <div class="form-group">
+                <label for="reason">Reason</label>
+                <select id="reason" name="reason" class="form-input">
+                    <option value="">-- Select Reason --</option>
+                    {% for val, label in [
+                        ('customer_request',  'Customer Request'),
+                        ('damaged_product',   'Damaged Product'),
+                        ('wrong_item',        'Wrong Item Shipped'),
+                        ('not_as_described',  'Not As Described'),
+                        ('price_adjustment',  'Price Adjustment'),
+                        ('goodwill',          'Goodwill / Customer Satisfaction'),
+                        ('other',             'Other')
+                    ] %}
+                        <option value="{{ val }}"
+                                {% if refund and refund['reason'] == val %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+        </div>
+
+        <!-- Notes -->
+        <div class="form-group">
+            <label for="notes">Notes</label>
+            <textarea id="notes"
+                      name="notes"
+                      class="form-input"
+                      rows="3"
+                      placeholder="Additional notes...">{{ refund['notes'] if refund and refund['notes'] else '' }}</textarea>
+        </div>
+
+        {% if refund %}
+        <p class="text-muted" style="font-size:0.85em; margin-top:0.5em;">
+            ℹ️ Editing this refund updates the dashboard Net Revenue and customer balance automatically — no manual sync needed.
+        </p>
+        {% endif %}
+    </div>
+
+    <!-- Form Actions -->
+    <div class="card-body" style="border-top:1px solid #e2e8f0; padding-top:1.5em;">
+        <div class="form-actions">
+            {% if refund %}
+                <a href="{{ url_for('refunds.refund_detail', id=refund['id']) }}" class="btn btn-outline">Cancel</a>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            {% else %}
+                <a href="{{ url_for('refunds.refunds_list') }}" class="btn btn-outline">Cancel</a>
+                <button type="submit" class="btn btn-primary">Create Refund</button>
+            {% endif %}
+        </div>
+    </div>
+</form>
+
+<script>
+// When a return is selected, auto-select its order
+document.getElementById('return_id').addEventListener('change', function() {
+    const orderId = this.selectedOptions[0]?.dataset.orderId;
+    if (orderId) {
+        document.getElementById('order_id').value = orderId;
+    }
+});
+</script>
+{% endblock %}

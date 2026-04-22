@@ -1,0 +1,50 @@
+<table class="table">
+    <thead>
+        <tr>
+            <th>Code</th>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>Total Spent</th>
+            <th>Outstanding Debt</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for customer in customers %}
+            <tr>
+                <td><strong>{{ customer.code }}</strong></td>
+                <td><a href="{{ url_for('customers.customer_detail', id=customer.id) }}">{{ customer.name }}</a></td>
+                <td>{{ customer.phone or '—' }}</td>
+                <td>{{ customer.total_spent|vnd }}</td>
+                <td>
+                    {% if customer.outstanding_debt > 0 %}
+                        <span style="color: var(--danger); font-weight: bold;">{{ customer.outstanding_debt|vnd }}</span>
+                    {% elif customer.outstanding_debt < 0 %}
+                        <span style="color: var(--success); font-size:0.85em;" title="Overpaid / credit">
+                            +{{ (customer.outstanding_debt * -1)|vnd }} credit
+                        </span>
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="action-buttons">
+                        <a href="{{ url_for('customers.customer_detail', id=customer.id) }}" class="btn btn-sm btn-outline">
+                            View
+                        </a>
+                        <button class="btn btn-sm btn-outline"
+                                hx-get="{{ url_for('customers.edit_customer', id=customer.id) }}"
+                                hx-target="#modal-container">
+                            Edit
+                        </button>
+                        <button class="btn btn-sm btn-danger"
+                                hx-post="{{ url_for('customers.delete_customer', id=customer.id) }}"
+                                hx-confirm="Delete this customer?">
+                            Delete
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>

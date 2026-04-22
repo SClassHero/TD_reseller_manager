@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Data Import - Inventory Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Data Import</h1>
+    <p class="text-muted">Import bulk data from CSV files</p>
+</div>
+
+<!-- Import Products -->
+<div class="card">
+    <div class="card-header">
+        <h2>Import Products</h2>
+    </div>
+    <div class="card-body">
+        <p class="text-muted">Import products with their prices and stock levels.</p>
+
+        <div class="form-section">
+            <h3>Expected CSV Format</h3>
+            <div style="background-color: #f5f5f5; padding: 10px; border-radius: 4px; margin: 10px 0; overflow-x: auto;">
+                <code style="font-size: 12px;">
+name,category,sale_price,cost_price,barcode,min_stock_level<br>
+Laptop,Electronics,12000000,8000000,SKU001,5<br>
+Mouse,Electronics,150000,100000,SKU002,20<br>
+Desk,Furniture,2000000,1200000,SKU003,2
+                </code>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('imports.import_products') }}" enctype="multipart/form-data" class="form-section">
+            <div class="form-group">
+                <label for="products_file">Select CSV File:</label>
+                <input type="file" id="products_file" name="file" accept=".csv" class="form-input" required>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Import Products</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Import Customers -->
+<div class="card">
+    <div class="card-header">
+        <h2>Import Customers</h2>
+    </div>
+    <div class="card-body">
+        <p class="text-muted">Import customer information including contact details.</p>
+
+        <div class="form-section">
+            <h3>Expected CSV Format</h3>
+            <div style="background-color: #f5f5f5; padding: 10px; border-radius: 4px; margin: 10px 0; overflow-x: auto;">
+                <code style="font-size: 12px;">
+name,email,phone,address,region<br>
+John Doe,john@example.com,0901234567,123 Main St,North<br>
+Jane Smith,jane@example.com,0987654321,456 Oak Ave,South<br>
+Bob Johnson,bob@example.com,0912345678,789 Pine Rd,Central
+                </code>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('imports.import_customers') }}" enctype="multipart/form-data" class="form-section">
+            <div class="form-group">
+                <label for="customers_file">Select CSV File:</label>
+                <input type="file" id="customers_file" name="file" accept=".csv" class="form-input" required>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Import Customers</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Import Inventory -->
+<div class="card">
+    <div class="card-header">
+        <h2>Import Inventory</h2>
+    </div>
+    <div class="card-body">
+        <p class="text-muted">Import inventory stock levels for existing products. Use either product_code or product_name.</p>
+
+        <div class="form-section">
+            <h3>Expected CSV Format (Option 1: Using Product Code)</h3>
+            <div style="background-color: #f5f5f5; padding: 10px; border-radius: 4px; margin: 10px 0; overflow-x: auto;">
+                <code style="font-size: 12px;">
+product_code,quantity,cost_price,intake_date,notes<br>
+SP000001,100,8000000,2026-04-01,Initial stock<br>
+SP000002,50,100000,2026-04-02,Restock
+                </code>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Expected CSV Format (Option 2: Using Product Name)</h3>
+            <div style="background-color: #f5f5f5; padding: 10px; border-radius: 4px; margin: 10px 0; overflow-x: auto;">
+                <code style="font-size: 12px;">
+product_name,quantity,cost_price,intake_date,notes<br>
+Laptop,100,8000000,2026-04-01,Initial stock<br>
+Mouse,50,100000,2026-04-02,Restock
+                </code>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('imports.import_inventory') }}" enctype="multipart/form-data" class="form-section">
+            <div class="form-group">
+                <label for="inventory_file">Select CSV File:</label>
+                <input type="file" id="inventory_file" name="file" accept=".csv" class="form-input" required>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Import Inventory</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="form-actions">
+    <a href="{{ url_for('dashboard.dashboard') }}" class="btn btn-outline">Back to Dashboard</a>
+</div>
+{% endblock %}

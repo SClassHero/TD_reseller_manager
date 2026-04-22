@@ -1,0 +1,43 @@
+<table class="table">
+    <thead>
+        <tr>
+            <th>Code</th>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Stock</th>
+            <th>Sale Price</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for product in products %}
+            <tr>
+                <td><strong>{{ product.code }}</strong></td>
+                <td>{{ product.name }}</td>
+                <td>{{ product.category.name if product.category else '-' }}</td>
+                <td>
+                    {% if product.stock < product.min_stock_level %}
+                        <span style="color: var(--danger); font-weight: bold;">{{ product.stock|number }}</span>
+                    {% else %}
+                        {{ product.stock|number }}
+                    {% endif %}
+                </td>
+                <td>{{ product.sale_price|vnd }}</td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn btn-sm btn-outline"
+                                hx-get="{{ url_for('products.edit_product', id=product.id) }}"
+                                hx-target="#modal-container">
+                            Edit
+                        </button>
+                        <button class="btn btn-sm btn-danger"
+                                hx-post="{{ url_for('products.delete_product', id=product.id) }}"
+                                hx-confirm="Delete this product?">
+                            Delete
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>

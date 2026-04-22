@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}{{ refund.refund_code }} - Refunds - Inventory Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>{{ refund['refund_code'] }}</h1>
+        <p class="text-muted">{{ refund['refund_date'] }}</p>
+    </div>
+</div>
+
+<!-- Refund Info -->
+<div class="cards-row">
+    <div class="card flex-1">
+        <div class="card-header">
+            <h3>Refund Information</h3>
+        </div>
+        <div class="card-body">
+            <dl class="details-list">
+                <dt>Refund Code</dt>
+                <dd>{{ refund['refund_code'] }}</dd>
+
+                <dt>Order</dt>
+                <dd>
+                    <a href="{{ url_for('orders.order_detail', id=refund['order_id']) }}">
+                        {{ refund['order_code'] }}
+                    </a>
+                </dd>
+
+                <dt>Customer</dt>
+                <dd>
+                    <a href="{{ url_for('customers.customer_detail', id=refund['customer_id']) }}">
+                        {{ refund['customer_name'] }}
+                    </a>
+                </dd>
+
+                {% if refund['return_id'] %}
+                <dt>Linked Return</dt>
+                <dd>
+                    <a href="{{ url_for('returns.return_detail', id=refund['return_id']) }}">
+                        {{ refund['return_code'] }}
+                    </a>
+                </dd>
+                {% else %}
+                <dt>Linked Return</dt>
+                <dd class="text-muted">None (refund without return)</dd>
+                {% endif %}
+
+                <dt>Refund Date</dt>
+                <dd>{{ refund['refund_date'] }}</dd>
+            </dl>
+        </div>
+    </div>
+
+    <div class="card flex-1">
+        <div class="card-header">
+            <h3>Refund Details</h3>
+        </div>
+        <div class="card-body">
+            <dl class="details-list">
+                <dt>Original Order Total</dt>
+                <dd>{{ refund['total_amount']|vnd }}</dd>
+
+                <dt style="font-weight: bold; border-top: 1px solid #e2e8f0; padding-top: 0.5em; margin-top: 0.5em;">Refund Amount</dt>
+                <dd style="font-weight: bold; font-size: 1.3em; color: var(--primary);">{{ refund['amount']|vnd }}</dd>
+
+                <dt>Method</dt>
+                <dd>{{ refund['refund_method']|title if refund['refund_method'] else '-' }}</dd>
+
+                <dt>Reason</dt>
+                <dd>{{ refund['reason'].replace('_', ' ')|title if refund['reason'] else '-' }}</dd>
+            </dl>
+        </div>
+    </div>
+</div>
+
+<!-- Refund Notes -->
+{% if refund['notes'] %}
+    <div class="card">
+        <div class="card-header">
+            <h3>Notes</h3>
+        </div>
+        <div class="card-body">
+            <p>{{ refund['notes'] }}</p>
+        </div>
+    </div>
+{% endif %}
+
+<!-- Original Order Items (for reference) -->
+<div class="card">
+    <div class="card-header">
+        <h3>Original Order Items</h3>
+    </div>
+    <div class="card-body">
+        {% if items %}
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Unit Price</th>
+                            <th>Line Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                            <tr>
+                                <td>
+                                    {{ item['name'] }}
+                                    <br>
+                                    <small class="text-muted">{{ item['product_code'] }}</small>
+                                </td>
+                                <td>{{ item['quantity']|number }}</td>
+                                <td>{{ item['unit_price']|vnd }}</td>
+                                <td>{{ item['line_total']|vnd }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Actions -->
+<div class="card">
+    <div class="card-header">
+        <h3>Actions</h3>
+    </div>
+    <div class="card-body">
+        <div class="button-group" style="flex-wrap:wrap; gap:10px;">
+            <a href="{{ url_for('refunds.refunds_list') }}" class="btn btn-outline">← Back to Refunds</a>
+            <a href="{{ url_for('orders.order_detail', id=refund['order_id']) }}" class="btn btn-outline">View Order</a>
+            {% if refund['return_id'] %}
+                <a href="{{ url_for('returns.return_detail', id=refund['return_id']) }}" class="btn btn-outline">View Return</a>
+            {% endif %}
+
+            <div style="margin-left:auto; display:flex; gap:10px;">
+                <a href="{{ url_for('refunds.edit_refund', id=refund['id']) }}" class="btn btn-primary">
+                    ✏ Edit Refund
+                </a>
+                <form method="POST" action="{{ url_for('refunds.delete_refund', id=refund['id']) }}">
+                    <button type="submit" class="btn btn-danger"
+                            data-code="{{ refund['refund_code'] }}"
+                            data-amount="{{ refund['amount'] | int }}"
+                            onclick="return confirm('Delete refund ' + this.dataset.code + '?\n\nThis will increase Net Revenue on the dashboard by ' + this.dataset.amount + ' and cannot be undone.')">
+                        🗑 Delete
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

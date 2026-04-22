@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Profit & Loss Report - Inventory Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Profit & Loss Report</h1>
+</div>
+
+<!-- Overall P&L Summary -->
+{% if overall_pl %}
+<div class="card">
+    <div class="card-header">
+        <h2>Overall Profitability</h2>
+    </div>
+    <div class="card-body">
+        <div class="details-list">
+            <div class="detail-item">
+                <span class="detail-label">Total Revenue:</span>
+                <span class="detail-value">{{ overall_pl['total_revenue']|vnd }}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Total COGS:</span>
+                <span class="detail-value">{{ overall_pl['total_cogs']|vnd }}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Gross Profit:</span>
+                <span class="detail-value" style="color: {% if overall_pl['gross_profit'] > 0 %}green{% else %}red{% endif %};">
+                    {{ overall_pl['gross_profit']|vnd }}
+                </span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Profit Margin:</span>
+                <span class="detail-value">{{ "%.2f"|format(overall_margin) }}%</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- P&L by Month -->
+<div class="card">
+    <div class="card-header">
+        <h2>P&L by Month (Last 12 Months)</h2>
+    </div>
+    <div class="card-body">
+        {% if by_month %}
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th>Orders</th>
+                            <th>Revenue</th>
+                            <th>COGS</th>
+                            <th>Profit</th>
+                            <th>Margin</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for month in by_month %}
+                            {% set margin = (month['profit'] / month['revenue'] * 100) if month['revenue'] > 0 else 0 %}
+                            <tr>
+                                <td>{{ month['month'] }}</td>
+                                <td>{{ month['order_count']|number }}</td>
+                                <td>{{ month['revenue']|vnd }}</td>
+                                <td>{{ month['cogs']|vnd }}</td>
+                                <td style="color: {% if month['profit'] > 0 %}green{% else %}red{% endif %};">
+                                    {{ month['profit']|vnd }}
+                                </td>
+                                <td>{{ "%.2f"|format(margin) }}%</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted">No monthly data available.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- P&L by Product -->
+<div class="card">
+    <div class="card-header">
+        <h2>P&L by Product (Ranked by Profit)</h2>
+    </div>
+    <div class="card-body">
+        {% if by_product %}
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Product Code</th>
+                            <th>Product Name</th>
+                            <th>Units Sold</th>
+                            <th>Revenue</th>
+                            <th>COGS</th>
+                            <th>Profit</th>
+                            <th>Margin</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in by_product %}
+                            {% set margin = (product['profit'] / product['revenue'] * 100) if product['revenue'] > 0 else 0 %}
+                            <tr>
+                                <td>{{ product['product_code'] }}</td>
+                                <td>{{ product['name'] }}</td>
+                                <td>{{ product['units_sold']|number }}</td>
+                                <td>{{ product['revenue']|vnd }}</td>
+                                <td>{{ product['cogs']|vnd }}</td>
+                                <td style="color: {% if product['profit'] > 0 %}green{% else %}red{% endif %};">
+                                    {{ product['profit']|vnd }}
+                                </td>
+                                <td>{{ "%.2f"|format(margin) }}%</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted">No product sales data available.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="form-actions">
+    <a href="{{ url_for('reports.reports_index') }}" class="btn btn-outline">Back to Reports</a>
+</div>
+{% endblock %}

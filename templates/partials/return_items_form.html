@@ -1,0 +1,133 @@
+<!-- Step 2: Select Items to Return -->
+<div class="form-section">
+    <h3>Step 2: Select Items to Return</h3>
+    <p class="text-muted">From order <strong>{{ order['order_code'] }}</strong> ({{ order['customer_name'] }})</p>
+
+    {% if items %}
+        <div style="overflow-x: auto; margin-top: 1em;">
+            <table class="table" style="margin: 0;">
+                <thead>
+                    <tr>
+                        <th style="width: 30px;">Select</th>
+                        <th>Product</th>
+                        <th>Ordered Qty</th>
+                        <th>Unit Price</th>
+                        <th>Return Qty</th>
+                        <th>Refund Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                        <tr data-item-index="{{ loop.index0 }}"
+                            data-product-id="{{ item['product_id'] }}"
+                            data-order-item-id="{{ item['id'] }}"
+                            data-qty="{{ item['quantity'] }}"
+                            data-unit-price="{{ item['unit_price'] }}"
+                            data-line-total="{{ item['line_total'] }}">
+                            <td>
+                                <input type="checkbox"
+                                       class="return-item-checkbox"
+                                       data-item-index="{{ loop.index0 }}">
+                            </td>
+                            <td>
+                                <strong>{{ item['name'] }}</strong><br>
+                                <small class="text-muted">{{ item['product_code'] }}</small>
+                            </td>
+                            <td>{{ item['quantity']|number }}</td>
+                            <td>{{ item['unit_price']|vnd }}</td>
+                            <td>
+                                <!-- Hidden inputs are ONLY injected when checked (by JS below) -->
+                                <input type="number"
+                                       class="return-qty-input"
+                                       value="{{ item['quantity'] }}"
+                                       min="1"
+                                       max="{{ item['quantity'] }}"
+                                       style="width: 70px; padding: 0.5em; border: 1px solid #e2e8f0; border-radius: 4px;"
+                                       disabled>
+                            </td>
+                            <td>
+                                <input type="number"
+                                       class="refund-amount-input"
+                                       value="{{ item['line_total'] }}"
+                                       min="0"
+                                       step="0.01"
+                                       style="width: 120px; padding: 0.5em; border: 1px solid #e2e8f0; border-radius: 4px;"
+                                       disabled>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Hidden container: form fields for checked items only -->
+        <div id="return-items-payload"></div>
+
+        <script>
+        (function() {
+            // Rebuild the hidden form payload whenever a checkbox or value changes
+            function rebuildPayload() {
+                const container = document.getElementById('return-items-payload');
+                container.innerHTML = '';
+                let idx = 0;
+
+                document.querySelectorAll('.return-item-checkbox:checked').forEach(cb => {
+                    const row = cb.closest('tr');
+                    const qty = row.querySelector('.return-qty-input').value;
+                    const refund = row.querySelector('.refund-amount-input').value;
+
+                    container.innerHTML += `
+                        <input type="hidden" name="items[${idx}][order_item_id]" value="${row.dataset.orderItemId}">
+                        <input type="hidden" name="items[${idx}][product_id]"    value="${row.dataset.productId}">
+                        <input type="hidden" name="items[${idx}][quantity]"       value="${qty}">
+                        <input type="hidden" name="items[${idx}][refund_amount]"  value="${refund}">
+                    `;
+                    idx++;
+                });
+            }
+
+            // Enable/disable visible inputs based on checkbox
+            document.querySelectorAll('.return-item-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    const row = this.closest('tr');
+                    const qtyInput = row.querySelector('.return-qty-input');
+                    const refundInput = row.querySelector('.refund-amount-input');
+
+                    if (this.checked) {
+                        qtyInput.disabled = false;
+                        refundInput.disabled = false;
+                        qtyInput.value = parseInt(row.dataset.qty);
+                        refundInput.value = (parseInt(row.dataset.qty) * parseFloat(row.dataset.unitPrice)).toFixed(0);
+                    } else {
+                        qtyInput.disabled = true;
+                        refundInput.disabled = true;
+                        qtyInput.value = parseInt(row.dataset.qty);
+                        refundInput.value = 0;
+                    }
+                    rebuildPayload();
+                });
+            });
+
+            // Update refund amount when qty changes, and rebuild payload
+            document.querySelectorAll('.return-qty-input').forEach(input => {
+                input.addEventListener('input', function() {
+                    const row = this.closest('tr');
+                    const qty = parseInt(this.value) || 0;
+                    const unitPrice = parseFloat(row.dataset.unitPrice);
+                    row.querySelector('.refund-amount-input').value = Math.round(qty * unitPrice);
+                    rebuildPayload();
+                });
+            });
+
+            // Rebuild payload on manual refund amount edit
+            document.querySelectorAll('.refund-amount-input').forEach(input => {
+                input.addEventListener('input', function() {
+                    rebuildPayload();
+                });
+            });
+        })();
+        </script>
+    {% else %}
+        <p class="text-muted">This order has no items or has already been fully returned.</p>
+    {% endif %}
+</div>

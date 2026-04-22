@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Reports - Inventory Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Reports</h1>
+</div>
+
+<div class="cards-row">
+    <div class="card">
+        <div class="card-header">
+            <h3>Sales Report</h3>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">View sales trends, top products, and customer analysis with customizable date ranges.</p>
+            <a href="{{ url_for('reports.sales_report') }}" class="btn btn-primary">View Report</a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3>Inventory Report</h3>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">Monitor stock levels, inventory value, identify low stock alerts and dead stock items.</p>
+            <a href="{{ url_for('reports.inventory_report') }}" class="btn btn-primary">View Report</a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3>Profit & Loss Report</h3>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">Analyze revenue, costs, and profitability by time period and product.</p>
+            <a href="{{ url_for('reports.profit_report') }}" class="btn btn-primary">View Report</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

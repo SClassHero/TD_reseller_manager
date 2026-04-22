@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Inventory Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Settings</h1>
+</div>
+
+<!-- Application Settings -->
+<div class="card">
+    <div class="card-header">
+        <h2>Application Settings</h2>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('settings.update_settings') }}">
+            <div class="form-group">
+                <label for="app_name">Application Name:</label>
+                <input type="text" id="app_name" name="app_name" value="{{ settings['app_name'] }}" class="form-input" required>
+            </div>
+
+            <div class="form-group">
+                <label for="default_currency">Default Currency:</label>
+                <input type="text" id="default_currency" name="default_currency" value="{{ settings['default_currency'] }}" class="form-input" required>
+            </div>
+
+            <div class="form-group">
+                <label for="vnd_usd_rate">VND to USD Exchange Rate:</label>
+                <input type="number" id="vnd_usd_rate" name="vnd_usd_rate" value="{{ settings['vnd_usd_rate'] }}" step="0.01" class="form-input" required>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Save Settings</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Change Password -->
+<div class="card">
+    <div class="card-header">
+        <h2>Change Admin Password</h2>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('settings.change_password') }}">
+            <div class="form-group">
+                <label for="old_password">Current Password:</label>
+                <input type="password" id="old_password" name="old_password" class="form-input" required>
+            </div>
+
+            <div class="form-group">
+                <label for="new_password">New Password:</label>
+                <input type="password" id="new_password" name="new_password" class="form-input" required>
+                <small class="text-muted">Minimum 4 characters</small>
+            </div>
+
+            <div class="form-group">
+                <label for="confirm_password">Confirm New Password:</label>
+                <input type="password" id="confirm_password" name="confirm_password" class="form-input" required>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Change Password</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Backup Database -->
+<div class="card">
+    <div class="card-header">
+        <h2>Database Backup</h2>
+    </div>
+    <div class="card-body">
+        <p class="text-muted">Download a complete backup of your database. The backup includes all data (products, customers, orders, etc.).</p>
+        <form method="POST" action="{{ url_for('settings.backup_database') }}" style="margin-top: 15px;">
+            <div class="form-actions">
+                <button type="submit" class="btn btn-success">Download Backup</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Reset Database -->
+<div class="card">
+    <div class="card-header">
+        <h2>Reset Database</h2>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-danger" style="margin-bottom: 15px;">
+            <strong>Warning:</strong> This action will delete ALL data from the database (products, customers, orders, inventory, etc.). This action cannot be undone. Make a backup first if needed.
+        </div>
+
+        <form method="POST" action="{{ url_for('settings.reset_database') }}">
+            <p class="text-muted">To confirm the reset, type <strong>RESET</strong> in the field below:</p>
+            <div class="form-group">
+                <input type="text" name="confirmation" class="form-input" placeholder="Type RESET to confirm" required>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-danger">Reset Database</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="form-actions">
+    <a href="{{ url_for('dashboard.dashboard') }}" class="btn btn-outline">Back to Dashboard</a>
+</div>
+{% endblock %}

@@ -1,0 +1,112 @@
+<div class="modal active">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Add Inventory Intake</h3>
+            <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+        </div>
+
+        <form method="POST" action="{{ url_for('inventory.create_intake') }}">
+            <div class="form-group">
+                <label for="product_id">Product *</label>
+                <select id="product_id" name="product_id" class="form-input" required
+                        onchange="prefillCost(this)">
+                    <option value="">-- Select Product --</option>
+                    {% for product in products %}
+                        <option value="{{ product['id'] }}"
+                                data-cost="{{ product['cost_price'] or '' }}">
+                            [{{ product['product_code'] }}] {{ product['name'] }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="quantity">
+                    Quantity *
+                    <small class="text-muted" style="font-weight:normal;">
+                        (use negative for pre-orders / backorders not yet in warehouse)
+                    </small>
+                </label>
+                <input type="number"
+                       id="quantity"
+                       name="quantity"
+                       class="form-input"
+                       placeholder="e.g. 10 or -5 for backorder"
+                       required>
+            </div>
+
+            <div class="form-group">
+                <label for="cost_price">Cost Price per Unit</label>
+                <input type="number"
+                       id="cost_price"
+                       name="cost_price"
+                       class="form-input"
+                       min="0"
+                       step="0.01"
+                       placeholder="0">
+            </div>
+
+            <div class="form-group">
+                <label for="shipping_cost">
+                    Shipping Cost to Warehouse
+                    <small class="text-muted" style="font-weight:normal;">(total, not per unit)</small>
+                </label>
+                <input type="number"
+                       id="shipping_cost"
+                       name="shipping_cost"
+                       class="form-input"
+                       min="0"
+                       step="0.01"
+                       placeholder="0"
+                       value="0">
+            </div>
+
+            <div class="form-group">
+                <label for="currency">Currency</label>
+                <select id="currency" name="currency" class="form-input">
+                    <option value="VND" {% if display_currency == 'VND' %}selected{% endif %}>VND</option>
+                    <option value="USD" {% if display_currency == 'USD' %}selected{% endif %}>USD</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="intake_date">Intake Date</label>
+                <input type="date"
+                       id="intake_date"
+                       name="intake_date"
+                       class="form-input">
+            </div>
+
+            <div class="form-group">
+                <label for="notes">Notes</label>
+                <textarea id="notes" name="notes" class="form-input" rows="2" placeholder="Optional notes"></textarea>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="this.closest('.modal').remove()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function prefillCost(select) {
+    const cost = select.selectedOptions[0]?.dataset.cost;
+    const costField = document.getElementById('cost_price');
+    // Only pre-fill if the cost field is still empty or unchanged from a previous pre-fill
+    if (cost && costField && (!costField.value || costField.dataset.prefilled === 'true')) {
+        costField.value = cost;
+        costField.dataset.prefilled = 'true';
+    }
+}
+// Allow user edits to break the auto-fill link
+document.addEventListener('DOMContentLoaded', function() {
+    const costField = document.getElementById('cost_price');
+    if (costField) {
+        costField.addEventListener('input', function() {
+            this.dataset.prefilled = 'false';
+        });
+    }
+});
+</script>

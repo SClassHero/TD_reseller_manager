@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Inventory Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Dashboard</h1>
+</div>
+
+<!-- Period Filter Tabs (plain links — no HTMX to avoid layout issues) -->
+<div class="filter-tabs">
+    <a href="{{ url_for('dashboard.dashboard', period='today') }}"
+       class="filter-tab {% if period == 'today' %}active{% endif %}">Today</a>
+    <a href="{{ url_for('dashboard.dashboard', period='this_week') }}"
+       class="filter-tab {% if period == 'this_week' %}active{% endif %}">This Week</a>
+    <a href="{{ url_for('dashboard.dashboard', period='this_month') }}"
+       class="filter-tab {% if period == 'this_month' %}active{% endif %}">This Month</a>
+    <a href="{{ url_for('dashboard.dashboard', period='this_quarter') }}"
+       class="filter-tab {% if period == 'this_quarter' %}active{% endif %}">This Quarter</a>
+    <a href="{{ url_for('dashboard.dashboard', period='this_year') }}"
+       class="filter-tab {% if period == 'this_year' %}active{% endif %}">This Year</a>
+    <a href="{{ url_for('dashboard.dashboard', period='all') }}"
+       class="filter-tab {% if period == 'all' %}active{% endif %}">All Time</a>
+    <a href="#"
+       class="filter-tab {% if period == 'custom' %}active{% endif %}"
+       onclick="document.getElementById('custom-date-form').style.display='block'; return false;">Custom</a>
+</div>
+
+<!-- Custom Date Range Form -->
+<div id="custom-date-form" style="display: {% if period == 'custom' %}block{% else %}none{% endif %}; margin-bottom: 1.5rem;">
+    <div class="card">
+        <div class="card-body">
+            <form method="get" action="{{ url_for('dashboard.dashboard') }}">
+                <input type="hidden" name="period" value="custom">
+                <div style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="start_date">Start Date</label>
+                        <input type="date" id="start_date" name="start_date"
+                               value="{{ start_date or '' }}" class="form-input" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="end_date">End Date</label>
+                        <input type="date" id="end_date" name="end_date"
+                               value="{{ end_date or '' }}" class="form-input" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Apply</button>
+                    <button type="button" class="btn btn-outline"
+                            onclick="document.getElementById('custom-date-form').style.display='none';">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Revenue & Profit Cards -->
+<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+    <div class="stat-card" style="border-top-color: #16a34a;">
+        <div class="stat-label">Net Revenue</div>
+        <div class="stat-value" style="color: #16a34a; font-size: 1.4rem;">{{ period_data.total_revenue|vnd }}</div>
+        <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 0.5rem;">
+            {{ period_data.order_count|number }} order{{ 's' if period_data.order_count != 1 else '' }}
+            {% if period_data.total_refunds > 0 %}
+                <br>Gross: {{ period_data.gross_revenue|vnd }}
+                <br>Refunds: -{{ period_data.total_refunds|vnd }}
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="stat-card" style="border-top-color: #dc2626;">
+        <div class="stat-label">Total Costs</div>
+        <div class="stat-value" style="color: #dc2626; font-size: 1.4rem;">{{ period_data.total_costs|vnd }}</div>
+        <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 0.5rem;">
+            COGS: {{ period_data.total_cogs|vnd }}
+            {% if period_data.seller_shipping > 0 %}
+                <br>Shipping (ours): {{ period_data.seller_shipping|vnd }}
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="stat-card" style="border-top-color: #2563eb;">
+        <div class="stat-label">Gross Profit</div>
+        <div class="stat-value" style="font-size: 1.4rem; color: {% if period_data.gross_profit >= 0 %}#16a34a{% else %}#dc2626{% endif %};">
+            {{ period_data.gross_profit|vnd }}
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 0.5rem;">Net revenue minus costs</div>
+    </div>
+
+    <div class="stat-card" style="border-top-color: #f59e0b;">
+        <div class="stat-label">Profit Margin</div>
+        <div class="stat-value" style="font-size: 1.4rem; color: {% if period_data.profit_margin >= 0 %}#16a34a{% else %}#dc2626{% endif %};">
+            {{ "%.1f"|format(period_data.profit_margin) }}%
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 0.5rem;">Profit / net revenue</div>
+    </div>
+</div>
+
+<!-- Monthly Revenue Chart (last 6 months) -->
+<div class="card">
+    <div class="card-header">
+        <h2>Monthly Revenue — Last 6 Months</h2>
+    </div>
+    <div class="card-body">
+        {% if monthly_data %}
+        <div style="display: flex; align-items: flex-end; justify-content: space-around; gap: 12px;
+                    height: 220px; padding: 0 10px 0 10px; border-bottom: 2px solid var(--border); margin-bottom: 1rem;">
+            {% for month in monthly_data %}
+            <div style="display: flex; flex-direction: column; align-items: center; flex: 1; height: 100%;">
+                <!-- Bars container -->
+                <div style="display: flex; gap: 3px; align-items: flex-end; height: 100%; width: 100%; justify-content: center;">
+                    <!-- Revenue bar -->
+                    <div style="flex: 1; max-width: 22px;
+                                height: {% if max_revenue > 0 %}{{ [(month.revenue / max_revenue * 100)|int, 2]|max }}{% else %}2{% endif %}%;
+                                background-color: var(--primary);
+                                border-radius: 3px 3px 0 0;
+                                cursor: default;"
+                         title="Revenue: {{ month.revenue|vnd }}">
+                    </div>
+                    <!-- COGS bar -->
+                    <div style="flex: 1; max-width: 22px;
+                                height: {% if max_revenue > 0 %}{{ [(month.cogs / max_revenue * 100)|int, 2]|max }}{% else %}2{% endif %}%;
+                                background-color: #f87171;
+                                border-radius: 3px 3px 0 0;
+                                cursor: default;"
+                         title="COGS: {{ month.cogs|vnd }}">
+                    </div>
+                </div>
+                <!-- Month label -->
+                <div style="font-size: 0.75rem; color: var(--text-light); margin-top: 6px; white-space: nowrap;">
+                    {{ month.month_short }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <!-- Legend -->
+        <div style="display: flex; gap: 2rem; justify-content: center; font-size: 0.8rem; color: var(--text-light);">
+            <span style="display: flex; align-items: center; gap: 6px;">
+                <span style="display: inline-block; width: 12px; height: 12px; background: var(--primary); border-radius: 2px;"></span>
+                Revenue
+            </span>
+            <span style="display: flex; align-items: center; gap: 6px;">
+                <span style="display: inline-block; width: 12px; height: 12px; background: #f87171; border-radius: 2px;"></span>
+                COGS
+            </span>
+        </div>
+        {% else %}
+        <p class="text-muted">No revenue data available.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Inventory & Operations Stats -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-label">Total Products</div>
+        <div class="stat-value">{{ total_products|number }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Total Stock</div>
+        <div class="stat-value">{{ total_stock|number }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Total Customers</div>
+        <div class="stat-value">{{ total_customers|number }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Inventory Value</div>
+        <div class="stat-value" style="font-size: 1.3rem;">{{ inventory_value|vnd }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Pending Orders</div>
+        <div class="stat-value">{{ pending_orders|number }}</div>
+    </div>
+    <div class="stat-card stat-card-alert">
+        <div class="stat-label">Low Stock Items</div>
+        <div class="stat-value">{{ low_stock_count|number }}</div>
+    </div>
+</div>
+
+<!-- Recent Orders -->
+<div class="card">
+    <div class="card-header">
+        <h2>Recent Orders</h2>
+        <a href="{{ url_for('orders.orders_list') }}" style="font-size: 0.85rem; color: var(--primary); text-decoration: none;">View all →</a>
+    </div>
+    <div class="card-body">
+        {% if recent_orders %}
+        <div class="table-wrapper">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Customer</th>
+                        <th>Date</th>
+                        <th>Total</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in recent_orders %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('orders.order_detail', id=order['id']) }}">
+                                {{ order['order_code'] }}
+                            </a>
+                        </td>
+                        <td>{{ order['customer_name'] }}</td>
+                        <td>{{ order['order_date'][:10] if order['order_date'] else '-' }}</td>
+                        <td>{{ order['total_amount']|vnd }}</td>
+                        <td>
+                            <span class="badge badge-{{ order['order_status'] }}">
+                                {{ order['order_status']|title }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted">No recent orders.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

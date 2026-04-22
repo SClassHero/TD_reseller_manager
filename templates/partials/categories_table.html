@@ -1,0 +1,33 @@
+<table class="table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Product Count</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for category in categories %}
+            <tr>
+                <td><strong>{{ category.name }}</strong></td>
+                <td>{{ category.description or '-' }}</td>
+                <td><span class="badge">{{ category.products|length }}</span></td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn btn-sm btn-outline"
+                                hx-get="{{ url_for('categories.edit_category', id=category.id) }}"
+                                hx-target="#modal-container">
+                            Edit
+                        </button>
+                        <button class="btn btn-sm btn-danger"
+                                hx-post="{{ url_for('categories.delete_category', id=category.id) }}"
+                                hx-confirm="Delete this category? Products in this category will not be deleted.">
+                            Delete
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>

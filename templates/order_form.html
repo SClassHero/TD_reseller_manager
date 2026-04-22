@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}{% if order %}Edit Order {{ order['order_code'] }}{% else %}Create Order{% endif %} - Inventory Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>{% if order %}Edit Order <small style="font-size:0.6em; color:var(--text-light);">{{ order['order_code'] }}</small>{% else %}Create Order{% endif %}</h1>
+        {% if order %}
+            <p class="text-muted">Only Draft or Processing orders can be edited. Saving will replace all items.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST"
+              action="{% if order %}{{ url_for('orders.update_order', id=order['id']) }}{% else %}{{ url_for('orders.create_order') }}{% endif %}"
+              id="orderForm">
+
+            <!-- Customer + Date -->
+            <div class="form-section">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="customer_id">Customer *</label>
+                        <select id="customer_id" name="customer_id" required class="form-input">
+                            <option value="">-- Select Customer --</option>
+                            {% for customer in customers %}
+                                <option value="{{ customer['id'] }}"
+                                    {% if order and order['customer_id'] == customer['id'] %}selected{% endif %}>
+                                    {{ customer['name'] }} ({{ customer['customer_code'] }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="order_date">Order Date *</label>
+                        <input type="date" id="order_date" name="order_date" required class="form-input"
+                               value="{% if order %}{{ order['order_date'][:10] }}{% else %}{{ today }}{% endif %}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Line Items -->
+            <div class="form-section">
+                <h3>Order Items</h3>
+                <div class="table-wrapper">
+                    <table class="table order-items-table" id="items-table">
+                        <thead>
+                            <tr>
+                                <th style="min-width:200px;">Product</th>
+                                <th style="width:90px;">Qty</th>
+                                <th style="width:130px;">Unit Price</th>
+                                <th style="width:100px;">Discount %</th>
+                                <th style="width:130px;">Line Total</th>
+                                <th style="width:70px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="order-items">
+                            <!-- Populated by JS below -->
+                        </tbody>
+                    </table>
+                </div>
+                <button type="button" class="btn btn-outline btn-sm" onclick="addItem()" style="margin-top:0.5rem;">
+                    + Add Item
+                </button>
+            </div>
+
+            <!-- Totals + Notes -->
+            <div class="form-section">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="discount_amount">Order Discount (₫)</label>
+                        <input type="number" id="discount_amount" name="discount_amount"
+                               class="form-input" min="0" step="1"
+                               value="{{ order['discount_amount']|int if order else 0 }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="shipping_fee">Shipping Fee (₫)</label>
+                        <input type="number" id="shipping_fee" name="shipping_fee"
+                               class="form-input" min="0" step="1"
+                               value="{{ order['shipping_fee']|int if order else 0 }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="shipping_paid_by">Shipping Paid By</label>
+                        <select id="shipping_paid_by" name="shipping_paid_by" class="form-input">
+                            <option value="customer" {% if order and order['shipping_paid_by'] == 'customer' %}selected{% elif not order %}selected{% endif %}>
+                                Customer (adds to revenue)
+                            </option>
+                            <option value="seller" {% if order and order['shipping_paid_by'] == 'seller' %}selected{% endif %}>
+                                Seller (adds to costs)
+                            </option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="notes">Notes</label>
+                    <textarea id="notes" name="notes" class="form-input" rows="3"
+                              placeholder="Order notes...">{{ order['notes'] or '' if order else '' }}</textarea>
+                </div>
+
+                <!-- Running total preview -->
+                <div style="text-align:right; font-size:0.95rem; color:var(--text-light); margin-top:0.5rem;">
+                    Subtotal: <strong id="preview-subtotal" style="color:var(--text);">₫0</strong>
+                    &nbsp;·&nbsp; Estimated Total:
+                    <strong id="preview-total" style="color:var(--primary); font-size:1.1rem;">₫0</strong>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="form-actions">
+                <a href="{% if order %}{{ url_for('orders.order_detail', id=order['id']) }}{% else %}{{ url_for('orders.orders_list') }}{% endif %}"
+                   class="btn btn-outline">Cancel</a>
+                <button type="submit" class="btn btn-primary">
+                    {% if order %}Save Changes{% else %}Create Order{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Products catalogue injected from server
+const PRODUCTS = [
+    {% for p in products %}
+    { id: {{ p['id'] }}, name: {{ p['name']|tojson }}, code: {{ p['product_code']|tojson }}, price: {{ p['sale_price'] or 0 }} },
+    {% endfor %}
+];
+
+// Pre-existing items (edit mode) — injected from server
+const EXISTING_ITEMS = [
+    {% if order_items %}
+        {% for item in order_items %}
+        {
+            product_id: {{ item['product_id'] }},
+            quantity: {{ item['quantity'] }},
+            unit_price: {{ item['unit_price'] }},
+            discount_percent: {{ item['discount_percent'] }},
+        },
+        {% endfor %}
+    {% endif %}
+];
+
+let itemIndex = 0;
+
+function buildOptionHtml(selectedId) {
+    let html = '<option value="">-- Select --</option>';
+    PRODUCTS.forEach(p => {
+        const sel = (p.id === selectedId) ? ' selected' : '';
+        html += `<option value="${p.id}" data-price="${p.price}"${sel}>${p.name} (${p.code})</option>`;
+    });
+    return html;
+}
+
+function addItem(cfg) {
+    cfg = cfg || {};
+    const tbody = document.getElementById('order-items');
+    const row = document.createElement('tr');
+    row.className = 'order-item-row';
+    row.dataset.index = itemIndex;
+
+    const qty     = cfg.quantity        || 1;
+    const price   = cfg.unit_price      || 0;
+    const disc    = cfg.discount_percent || 0;
+    const pid     = cfg.product_id      || null;
+
+    row.innerHTML = `
+        <td>
+            <select name="items[${itemIndex}][product_id]" class="form-input product-select" required>
+                ${buildOptionHtml(pid)}
+            </select>
+        </td>
+        <td>
+            <input type="number" name="items[${itemIndex}][quantity]"
+                   class="form-input qty-input" min="1" value="${qty}" required>
+        </td>
+        <td>
+            <input type="number" name="items[${itemIndex}][unit_price]"
+                   class="form-input price-input" min="0" step="1" value="${price}" required>
+        </td>
+        <td>
+            <input type="number" name="items[${itemIndex}][discount_percent]"
+                   class="form-input discount-input" min="0" max="100" step="0.1" value="${disc}">
+        </td>
+        <td style="text-align:right;">
+            <span class="line-total" style="font-weight:500;">₫0</span>
+        </td>
+        <td>
+            <button type="button" class="btn btn-danger btn-sm" onclick="removeItem(this)">✕</button>
+        </td>
+    `;
+
+    tbody.appendChild(row);
+    itemIndex++;
+    recalcRow(row);
+    updateTotals();
+}
+
+function removeItem(btn) {
+    btn.closest('tr').remove();
+    updateTotals();
+}
+
+function recalcRow(row) {
+    const qty   = parseFloat(row.querySelector('.qty-input').value)      || 0;
+    const price = parseFloat(row.querySelector('.price-input').value)    || 0;
+    const disc  = parseFloat(row.querySelector('.discount-input').value) || 0;
+    const total = qty * price * (1 - disc / 100);
+    row.querySelector('.line-total').textContent = '₫' + Math.round(total).toLocaleString('vi-VN');
+    return total;
+}
+
+function updateTotals() {
+    let subtotal = 0;
+    document.querySelectorAll('.order-item-row').forEach(r => { subtotal += recalcRow(r); });
+    const disc     = parseFloat(document.getElementById('discount_amount').value) || 0;
+    const shipping = parseFloat(document.getElementById('shipping_fee').value)    || 0;
+    const paidBy   = document.getElementById('shipping_paid_by').value;
+    // Only add shipping to customer total when customer pays
+    const total    = subtotal - disc + (paidBy === 'customer' ? shipping : 0);
+
+    document.getElementById('preview-subtotal').textContent = '₫' + Math.round(subtotal).toLocaleString('vi-VN');
+    document.getElementById('preview-total').textContent    = '₫' + Math.round(total).toLocaleString('vi-VN');
+}
+
+// Auto-fill price when product is changed
+document.addEventListener('change', e => {
+    if (e.target.classList.contains('product-select')) {
+        const opt = e.target.options[e.target.selectedIndex];
+        const row = e.target.closest('tr');
+        const priceInput = row.querySelector('.price-input');
+        const price = parseFloat(opt.getAttribute('data-price')) || 0;
+        if (price > 0) priceInput.value = price;
+        recalcRow(row);
+        updateTotals();
+    }
+    if (['discount_amount','shipping_fee','shipping_paid_by'].includes(e.target.id)) updateTotals();
+});
+
+// Recalc on any item field change
+document.addEventListener('input', e => {
+    if (e.target.closest('.order-item-row')) { recalcRow(e.target.closest('tr')); updateTotals(); }
+    if (['discount_amount','shipping_fee','shipping_paid_by'].includes(e.target.id)) updateTotals();
+});
+
+// Client-side guard
+document.getElementById('orderForm').addEventListener('submit', e => {
+    const rows = document.querySelectorAll('.order-item-row');
+    if (rows.length === 0) { e.preventDefault(); alert('Please add at least one item.'); return; }
+    for (const row of rows) {
+        if (!row.querySelector('.product-select').value) {
+            e.preventDefault(); alert('Please select a product for all items.'); return;
+        }
+    }
+});
+
+// ── Bootstrap ──────────────────────────────────────────────────────────────
+// Restore pre-existing items in edit mode, otherwise add one blank row
+if (EXISTING_ITEMS.length > 0) {
+    EXISTING_ITEMS.forEach(item => addItem(item));
+} else {
+    addItem();
+}
+</script>
+{% endblock %}

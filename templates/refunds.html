@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Refunds - Inventory Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Refunds</h1>
+    <a href="{{ url_for('refunds.new_refund') }}" class="btn btn-primary">
+        + New Refund
+    </a>
+</div>
+
+<!-- Search Bar -->
+<div class="filter-bar">
+    <input type="text"
+           placeholder="Search refunds..."
+           class="search-input"
+           hx-get="{{ url_for('refunds.refunds_list') }}"
+           hx-trigger="input changed delay:300ms"
+           hx-target="#refunds-table"
+           hx-swap="innerHTML"
+           name="search"
+           value="{{ search or '' }}">
+</div>
+
+<!-- Refunds Table -->
+<div class="card">
+    <div class="card-body">
+        {% if refunds %}
+            <div class="table-wrapper">
+                <div id="refunds-table">
+                    {% include 'partials/refunds_table.html' %}
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            {% if total_pages > 1 %}
+                <div class="pagination">
+                    {% if page > 1 %}
+                        <a href="{{ url_for('refunds.refunds_list', page=page - 1, search=search) }}"
+                           hx-get="{{ url_for('refunds.refunds_list', page=page - 1, search=search) }}"
+                           hx-target="#refunds-table"
+                           hx-swap="innerHTML"
+                           class="btn btn-outline btn-sm">
+                            Previous
+                        </a>
+                    {% endif %}
+
+                    <span class="pagination-info">
+                        Page {{ page }} of {{ total_pages }}
+                    </span>
+
+                    {% if page < total_pages %}
+                        <a href="{{ url_for('refunds.refunds_list', page=page + 1, search=search) }}"
+                           hx-get="{{ url_for('refunds.refunds_list', page=page + 1, search=search) }}"
+                           hx-target="#refunds-table"
+                           hx-swap="innerHTML"
+                           class="btn btn-outline btn-sm">
+                            Next
+                        </a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% else %}
+            <p class="text-muted">No refunds found.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

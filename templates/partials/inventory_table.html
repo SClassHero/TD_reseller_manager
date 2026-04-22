@@ -1,0 +1,48 @@
+<table class="table">
+    <thead>
+        <tr>
+            <th>Product</th>
+            <th>Code</th>
+            <th>Qty (In)</th>
+            <th>Remaining</th>
+            <th>Cost/Unit</th>
+            <th>Whse. Shipping</th>
+            <th>Intake Date</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for lot in lots %}
+            <tr {% if lot['remaining_quantity'] < 0 %}style="background:#fff3cd;"{% endif %}>
+                <td>{{ lot['product_name'] }}</td>
+                <td><code>{{ lot['product_code'] }}</code></td>
+                <td>
+                    {{ lot['quantity']|number }}
+                    {% if lot['quantity'] < 0 %}
+                        <span title="Backorder / pre-order" style="color:#856404; font-size:0.8em;">⚠ backorder</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span {% if lot['remaining_quantity'] < 0 %}style="color:#856404; font-weight:bold;"{% endif %}>
+                        {{ lot['remaining_quantity']|number }}
+                    </span>
+                </td>
+                <td>
+                    {{ lot['cost_price']|vnd }}
+                    {% if lot['currency'] and lot['currency'] != 'VND' and display_currency == 'VND' %}
+                        <span class="text-muted" style="font-size:0.8em;">({{ lot['currency'] }})</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if lot['shipping_cost'] and lot['shipping_cost'] > 0 %}
+                        {{ lot['shipping_cost']|vnd }}
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td>{{ lot['intake_date'][:10] if lot['intake_date'] else '—' }}</td>
+            </tr>
+        {% else %}
+            <tr><td colspan="7" class="text-muted" style="text-align:center;">No inventory lots found.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>

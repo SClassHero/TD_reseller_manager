@@ -1,0 +1,342 @@
+{% extends "base.html" %}
+
+{% block title %}{{ order['order_code'] }} - Orders - Inventory Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>{{ order['order_code'] }}</h1>
+        <p class="text-muted">{{ order['order_date'][:16] if order['order_date'] else '' }}</p>
+    </div>
+    <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+        <span class="badge badge-{{ order['order_status'] }}" style="font-size:1.05em; padding:0.5em 1em;">
+            {{ order['order_status']|title }}
+        </span>
+        {% set ps = order['payment_status'] %}
+        <span class="badge"
+              style="font-size:0.85em;
+                     background:{% if ps=='fully_paid' %}#d1fae5; color:#065f46
+                     {% elif ps=='partially_paid' %}#fef3c7; color:#92400e
+                     {% else %}#fee2e2; color:#7f1d1d{% endif %};">
+            {{ ps.replace('_',' ')|title }}
+        </span>
+    </div>
+</div>
+
+<!-- Info Row -->
+<div class="cards-row">
+    <!-- Order Info -->
+    <div class="card flex-1">
+        <div class="card-header"><h3>Order Information</h3></div>
+        <div class="card-body">
+            <dl class="details-list">
+                <dt>Order Code</dt><dd>{{ order['order_code'] }}</dd>
+                <dt>Customer</dt>
+                <dd>
+                    <a href="{{ url_for('customers.customer_detail', id=order['customer_id']) }}">
+                        {{ order['customer_name'] }}
+                    </a>
+                    <span class="text-muted" style="font-size:0.85em;">({{ order['customer_code'] }})</span>
+                </dd>
+                <dt>Date</dt><dd>{{ order['order_date'][:10] if order['order_date'] else '—' }}</dd>
+                <dt>Status</dt>
+                <dd><span class="badge badge-{{ order['order_status'] }}">{{ order['order_status']|title }}</span></dd>
+                {% if order['notes'] %}
+                    <dt>Notes</dt><dd>{{ order['notes'] }}</dd>
+                {% endif %}
+            </dl>
+        </div>
+    </div>
+
+    <!-- Totals -->
+    <div class="card flex-1">
+        <div class="card-header"><h3>Order Total</h3></div>
+        <div class="card-body">
+            <dl class="details-list">
+                <dt>Subtotal</dt>   <dd>{{ order['subtotal']|vnd }}</dd>
+                <dt>Discount</dt>   <dd style="color:var(--danger);">-{{ order['discount_amount']|vnd }}</dd>
+                <dt>Shipping</dt>
+                <dd>
+                    {{ order['shipping_fee']|vnd }}
+                    {% if order['shipping_fee'] and order['shipping_fee'] > 0 %}
+                        {% if order['shipping_paid_by'] == 'seller' %}
+                            <span class="badge" style="font-size:0.75em; background:#fee2e2; color:#7f1d1d; margin-left:0.5em;">Seller pays</span>
+                        {% else %}
+                            <span class="badge" style="font-size:0.75em; background:#d1fae5; color:#065f46; margin-left:0.5em;">Customer pays</span>
+                        {% endif %}
+                    {% endif %}
+                </dd>
+                <dt style="border-top:1px solid var(--border); padding-top:0.5em; margin-top:0.25em; font-size:1.05em;">Total</dt>
+                <dd style="font-weight:700; font-size:1.4em; color:var(--primary);">{{ order['total_amount']|vnd }}</dd>
+                <dt>Paid</dt>
+                <dd style="color:{% if total_paid >= order['total_amount'] %}var(--success){% else %}var(--warning){% endif %};">
+                    {{ total_paid|vnd }}
+                </dd>
+                {% if total_paid < order['total_amount'] %}
+                    <dt>Balance Due</dt>
+                    <dd style="color:var(--danger); font-weight:600;">{{ (order['total_amount'] - total_paid)|vnd }}</dd>
+                {% endif %}
+            </dl>
+        </div>
+    </div>
+</div>
+
+<!-- Order Items -->
+<div class="card">
+    <div class="card-header"><h3>Order Items</h3></div>
+    <div class="card-body">
+        {% if items %}
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th style="text-align:right;">Qty</th>
+                            <th style="text-align:right;">Unit Price</th>
+                            <th style="text-align:right;">Discount</th>
+                            <th style="text-align:right;">Line Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td>
+                                <div style="font-weight:500;">{{ item['name'] }}</div>
+                                <div style="font-size:0.8em; color:var(--text-light);">{{ item['product_code'] }}</div>
+                            </td>
+                            <td style="text-align:right;">{{ item['quantity']|number }}</td>
+                            <td style="text-align:right;">{{ item['unit_price']|vnd }}</td>
+                            <td style="text-align:right;">
+                                {% if item['discount_percent'] > 0 %}
+                                    {{ item['discount_percent'] }}%
+                                {% else %}-{% endif %}
+                            </td>
+                            <td style="text-align:right; font-weight:500;">{{ item['line_total']|vnd }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted">No items.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Inventory Allocations (only shown when completed) -->
+{% if order['order_status'] == 'completed' and allocations %}
+<div class="card">
+    <div class="card-header">
+        <h3>Inventory Deductions</h3>
+    </div>
+    <div class="card-body">
+        <p style="font-size:0.875rem; color:var(--text-light); margin-bottom:1rem;">
+            Stock quantities deducted from inventory lots when this order was completed.
+        </p>
+        <div class="table-wrapper">
+            <table class="table">
+                <thead>
+                    <tr><th>Product</th><th style="text-align:right;">Units Deducted</th></tr>
+                </thead>
+                <tbody>
+                    {% for alloc in allocations %}
+                    <tr>
+                        <td>{{ alloc['product_name'] }}</td>
+                        <td style="text-align:right; color:var(--danger);">-{{ alloc['total_allocated']|number }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Payments -->
+<div class="card">
+    <div class="card-header"><h3>Payments</h3></div>
+    <div class="card-body">
+        {% if payments %}
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Method</th>
+                            <th style="text-align:right;">Amount</th>
+                            <th>Note</th>
+                            <th style="width:160px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in payments %}
+                        <tr id="payment-row-{{ p['id'] }}">
+                            <td>{{ p['payment_date'][:10] if p['payment_date'] else '—' }}</td>
+                            <td>{{ p['payment_method']|title }}</td>
+                            <td style="text-align:right;">{{ p['amount']|vnd }}</td>
+                            <td>{{ p['notes'] or '—' }}</td>
+                            <td>
+                                <button type="button" class="btn btn-outline btn-sm"
+                                        onclick="editPayment({{ p['id'] }}, {{ p['amount'] }}, '{{ p['payment_method'] }}', '{{ p['notes'] or '' }}')">
+                                    Edit
+                                </button>
+                                <form method="POST"
+                                      action="{{ url_for('orders.delete_payment', id=order['id'], payment_id=p['id']) }}"
+                                      style="display:inline;">
+                                    <button type="submit" class="btn btn-danger btn-sm"
+                                            onclick="return confirm('Delete this payment?')">
+                                        Delete
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted">No payments recorded.</p>
+        {% endif %}
+
+        <!-- Add/Edit Payment Form -->
+        {% if order['order_status'] not in ('cancelled',) %}
+        <div id="payment-form-section" style="margin-top:1.5rem; padding-top:1.5rem; border-top:1px solid var(--border);">
+            <h4 id="payment-form-title" style="margin-bottom:1rem; font-size:0.95rem; color:var(--text-light);">Record Payment</h4>
+            <form id="payment-form" method="POST" action="{{ url_for('orders.add_payment', id=order['id']) }}" class="form-inline">
+                <div class="form-group" style="flex:1; min-width:150px;">
+                    <label>Amount (₫)</label>
+                    <input type="number" name="amount" id="pmt-amount" class="form-input" min="1" step="1" required placeholder="0">
+                </div>
+                <div class="form-group" style="flex:1; min-width:150px;">
+                    <label>Method</label>
+                    <select name="payment_method" id="pmt-method" class="form-input" required>
+                        <option value="cash">Cash</option>
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="momo">MoMo</option>
+                        <option value="zalopay">ZaloPay</option>
+                        <option value="check">Check</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex:2; min-width:150px;">
+                    <label>Note</label>
+                    <input type="text" name="notes" id="pmt-notes" class="form-input" placeholder="Optional note">
+                </div>
+                <button type="submit" class="btn btn-primary" style="margin-top:1.75rem;" id="pmt-submit-btn">Add Payment</button>
+                <button type="button" class="btn btn-outline" style="margin-top:1.75rem; display:none;" id="pmt-cancel-btn"
+                        onclick="cancelEditPayment()">Cancel</button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Actions -->
+<div class="card">
+    <div class="card-header"><h3>Actions</h3></div>
+    <div class="card-body">
+        <div class="button-group">
+            <a href="{{ url_for('orders.orders_list') }}" class="btn btn-outline">← Back to Orders</a>
+
+            {# ── EDIT (draft or processing) ─────────────────────────────── #}
+            {% if order['order_status'] in ('draft', 'processing') %}
+                <a href="{{ url_for('orders.edit_order', id=order['id']) }}" class="btn btn-primary">
+                    ✏️ Edit Order
+                </a>
+            {% endif %}
+
+            {# ── WORKFLOW PROGRESSION ───────────────────────────────────── #}
+            {% if order['order_status'] == 'draft' %}
+                <form method="POST" action="{{ url_for('orders.update_order_status', id=order['id']) }}" style="display:inline;">
+                    <input type="hidden" name="status" value="processing">
+                    <button type="submit" class="btn btn-primary"
+                            onclick="return confirm('Mark this order as Processing?')">
+                        Mark as Processing
+                    </button>
+                </form>
+            {% endif %}
+
+            {% if order['order_status'] in ('draft', 'processing') %}
+                <form method="POST" action="{{ url_for('orders.update_order_status', id=order['id']) }}" style="display:inline;">
+                    <input type="hidden" name="status" value="completed">
+                    <button type="submit" class="btn btn-success"
+                            onclick="return confirm('Complete this order? Inventory will be deducted.')">
+                        ✔ Mark as Completed
+                    </button>
+                </form>
+            {% endif %}
+
+            {# ── REOPEN (processing or completed) ───────────────────────── #}
+            {% if order['order_status'] in ('processing', 'completed') %}
+                {% if order['order_status'] == 'completed' %}
+                    {% set reopen_msg = 'Reopen this order to Draft? Inventory deductions will be reversed.' %}
+                {% else %}
+                    {% set reopen_msg = 'Reopen this order to Draft?' %}
+                {% endif %}
+                <form method="POST" action="{{ url_for('orders.update_order_status', id=order['id']) }}" style="display:inline;">
+                    <input type="hidden" name="status" value="draft">
+                    <button type="submit" class="btn btn-warning"
+                            onclick="return confirm('{{ reopen_msg }}')">
+                        ↩ Reopen to Draft
+                    </button>
+                </form>
+            {% endif %}
+
+            {# ── CANCEL ─────────────────────────────────────────────────── #}
+            {% if order['order_status'] != 'cancelled' %}
+                {% if order['order_status'] == 'completed' %}
+                    {% set cancel_msg = 'Cancel this order? Inventory will be restored. This cannot be undone.' %}
+                {% else %}
+                    {% set cancel_msg = 'Cancel this order? This cannot be undone.' %}
+                {% endif %}
+                <form method="POST" action="{{ url_for('orders.update_order_status', id=order['id']) }}" style="display:inline;">
+                    <input type="hidden" name="status" value="cancelled">
+                    <button type="submit" class="btn btn-danger"
+                            onclick="return confirm('{{ cancel_msg }}')">
+                        ✖ Cancel Order
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+
+        {% if order['order_status'] == 'processing' %}
+        <p class="text-muted" style="margin-top:1rem; font-size:0.85rem;">
+            Inventory is <strong>not yet deducted</strong> in Processing state — it is only deducted when the order is Completed.
+        </p>
+        {% endif %}
+        {% if order['order_status'] == 'cancelled' %}
+        <p class="text-muted" style="margin-top:1rem; font-size:0.85rem;">
+            This order has been cancelled and cannot be modified. Create a new order if needed.
+        </p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Payment inline edit
+function editPayment(paymentId, amount, method, notes) {
+    const form = document.getElementById('payment-form');
+    form.action = '{{ url_for("orders.order_detail", id=order["id"]) }}'.replace(/\/\d+$/, '') +
+                  '/{{ order["id"] }}/payment/' + paymentId + '/edit';
+    document.getElementById('pmt-amount').value = amount;
+    document.getElementById('pmt-method').value = method;
+    document.getElementById('pmt-notes').value = notes;
+    document.getElementById('payment-form-title').textContent = 'Edit Payment #' + paymentId;
+    document.getElementById('pmt-submit-btn').textContent = 'Save Changes';
+    document.getElementById('pmt-cancel-btn').style.display = '';
+
+    // Scroll to form
+    document.getElementById('payment-form-section').scrollIntoView({ behavior: 'smooth' });
+}
+
+function cancelEditPayment() {
+    const form = document.getElementById('payment-form');
+    form.action = '{{ url_for("orders.add_payment", id=order["id"]) }}';
+    document.getElementById('pmt-amount').value = '';
+    document.getElementById('pmt-method').value = 'cash';
+    document.getElementById('pmt-notes').value = '';
+    document.getElementById('payment-form-title').textContent = 'Record Payment';
+    document.getElementById('pmt-submit-btn').textContent = 'Add Payment';
+    document.getElementById('pmt-cancel-btn').style.display = 'none';
+}
+</script>
+{% endblock %}

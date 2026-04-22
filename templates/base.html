@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Inventory Manager{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2>Inventory</h2>
+                <button class="hamburger-close" onclick="document.getElementById('sidebar').classList.remove('active')">×</button>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="{{ url_for('dashboard.dashboard') }}" class="nav-link {% if current_path.startswith('/dashboard') %}active{% endif %}">
+                    Dashboard
+                </a>
+                <a href="{{ url_for('products.products_list') }}" class="nav-link {% if current_path.startswith('/products') %}active{% endif %}">
+                    Products
+                </a>
+                <a href="{{ url_for('categories.categories_list') }}" class="nav-link {% if current_path.startswith('/categories') %}active{% endif %}">
+                    Categories
+                </a>
+                <a href="{{ url_for('customers.customers_list') }}" class="nav-link {% if current_path.startswith('/customers') %}active{% endif %}">
+                    Customers
+                </a>
+                <a href="{{ url_for('inventory.inventory_list') }}" class="nav-link {% if current_path.startswith('/inventory') %}active{% endif %}">
+                    Inventory
+                </a>
+                <a href="{{ url_for('orders.orders_list') }}" class="nav-link {% if current_path.startswith('/orders') %}active{% endif %}">
+                    Orders
+                </a>
+                <a href="{{ url_for('returns.returns_list') }}" class="nav-link {% if current_path.startswith('/returns') %}active{% endif %}">
+                    Returns
+                </a>
+                <a href="{{ url_for('refunds.refunds_list') }}" class="nav-link {% if current_path.startswith('/refunds') %}active{% endif %}">
+                    Refunds
+                </a>
+                <hr style="margin: 10px 0; border: none; border-top: 1px solid rgba(255,255,255,0.1);">
+                <a href="{{ url_for('reports.reports_index') }}" class="nav-link {% if current_path.startswith('/reports') %}active{% endif %}">
+                    Reports
+                </a>
+                <a href="{{ url_for('imports.import_page') }}" class="nav-link {% if current_path.startswith('/import') %}active{% endif %}">
+                    Import
+                </a>
+                <a href="{{ url_for('settings.settings_page') }}" class="nav-link {% if current_path.startswith('/settings') %}active{% endif %}">
+                    Settings
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="main-wrapper">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <button class="hamburger-toggle" onclick="document.getElementById('sidebar').classList.add('active')">
+                        ☰
+                    </button>
+                    <h1 class="app-title">Inventory Manager</h1>
+                </div>
+                <div class="header-right" style="display:flex; align-items:center; gap:12px;">
+                    <!-- Currency Toggle -->
+                    <form method="POST" action="{{ url_for('switch_currency') }}" style="margin:0;">
+                        <button type="submit"
+                                title="Switch display currency (rate: {{ vnd_usd_rate|number }} VND/USD)"
+                                style="background:none; border:1px solid rgba(255,255,255,0.4); color:#fff; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.85em; font-weight:bold;">
+                            {% if display_currency == 'VND' %}
+                                ₫ VND → $USD
+                            {% else %}
+                                $ USD → ₫VND
+                            {% endif %}
+                        </button>
+                    </form>
+                    <a href="{{ url_for('logout') }}" class="logout-link">Logout</a>
+                </div>
+            </header>
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-container">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <!-- Main Content -->
+            <main class="main-content">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal Container -->
+    <div id="modal-container"></div>
+
+    <script>
+        // Hamburger toggle for mobile
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('active');
+        }
+
+        // Close sidebar when clicking nav links
+        document.querySelectorAll('.sidebar-nav a').forEach(link => {
+            link.addEventListener('click', () => {
+                document.getElementById('sidebar').classList.remove('active');
+            });
+        });
+    </script>
+</body>
+</html>

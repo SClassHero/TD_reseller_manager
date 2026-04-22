@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}Inventory Report - Inventory Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Inventory Report</h1>
+</div>
+
+<!-- Summary Statistics -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-label">Total Inventory Value</div>
+        <div class="stat-value">{{ total_inventory_value|vnd }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Low Stock Items</div>
+        <div class="stat-value">{{ low_stock|length }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Dead Stock Items</div>
+        <div class="stat-value">{{ dead_stock|length }}</div>
+    </div>
+</div>
+
+<!-- Low Stock Alerts -->
+<div class="card">
+    <div class="card-header">
+        <h2>Low Stock Alerts</h2>
+    </div>
+    <div class="card-body">
+        {% if low_stock %}
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Product Code</th>
+                            <th>Product Name</th>
+                            <th>Category</th>
+                            <th>Current Stock</th>
+                            <th>Min Level</th>
+                            <th>Difference</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in low_stock %}
+                            <tr>
+                                <td>{{ product['product_code'] }}</td>
+                                <td>{{ product['name'] }}</td>
+                                <td>{{ product['category_name'] or '-' }}</td>
+                                <td>{{ product['current_stock']|number }}</td>
+                                <td>{{ product['min_stock_level']|number }}</td>
+                                <td class="badge-danger">{{ product['current_stock'] - product['min_stock_level'] }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted">No items with low stock.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Dead Stock (No Sales in 30+ Days) -->
+<div class="card">
+    <div class="card-header">
+        <h2>Dead Stock (No Sales in 30+ Days)</h2>
+    </div>
+    <div class="card-body">
+        {% if dead_stock %}
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Product Code</th>
+                            <th>Product Name</th>
+                            <th>Category</th>
+                            <th>Current Stock</th>
+                            <th>Stock Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in dead_stock %}
+                            <tr>
+                                <td>{{ product['product_code'] }}</td>
+                                <td>{{ product['name'] }}</td>
+                                <td>{{ product['category_name'] or '-' }}</td>
+                                <td>{{ product['current_stock']|number }}</td>
+                                <td>{{ product['stock_value']|vnd }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted">No dead stock items.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Inventory by Category -->
+<div class="card">
+    <div class="card-header">
+        <h2>Inventory by Category</h2>
+    </div>
+    <div class="card-body">
+        {% if by_category %}
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Product Count</th>
+                            <th>Total Quantity</th>
+                            <th>Category Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for category in by_category %}
+                            <tr>
+                                <td>{{ category['category_name'] or 'Uncategorized' }}</td>
+                                <td>{{ category['product_count']|number }}</td>
+                                <td>{{ category['total_qty']|number }}</td>
+                                <td>{{ category['category_value']|vnd }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted">No inventory data available.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- All Products Inventory -->
+<div class="card">
+    <div class="card-header">
+        <h2>All Products Inventory</h2>
+    </div>
+    <div class="card-body">
+        {% if all_products %}
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Product Code</th>
+                            <th>Product Name</th>
+                            <th>Category</th>
+                            <th>Current Stock</th>
+                            <th>Cost Price</th>
+                            <th>Stock Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in all_products %}
+                            <tr>
+                                <td>{{ product['product_code'] }}</td>
+                                <td>{{ product['name'] }}</td>
+                                <td>{{ product['category_name'] or '-' }}</td>
+                                <td>{{ product['current_stock']|number }}</td>
+                                <td>{{ product['cost_price']|vnd }}</td>
+                                <td>{{ product['stock_value']|vnd }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted">No products available.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="form-actions">
+    <a href="{{ url_for('reports.reports_index') }}" class="btn btn-outline">Back to Reports</a>
+</div>
+{% endblock %}

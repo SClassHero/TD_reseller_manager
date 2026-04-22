@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}{{ return_data.return_code }} - Returns - Inventory Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>{{ return_data['return_code'] }}</h1>
+        <p class="text-muted">{{ return_data['return_date'] }}</p>
+    </div>
+</div>
+
+<!-- Return Info -->
+<div class="cards-row">
+    <div class="card flex-1">
+        <div class="card-header">
+            <h3>Return Information</h3>
+        </div>
+        <div class="card-body">
+            <dl class="details-list">
+                <dt>Return Code</dt>
+                <dd>{{ return_data['return_code'] }}</dd>
+
+                <dt>Original Order</dt>
+                <dd>
+                    <a href="{{ url_for('orders.order_detail', id=return_data['original_order_id']) }}">
+                        {{ return_data['order_code'] }}
+                    </a>
+                </dd>
+
+                <dt>Customer</dt>
+                <dd>
+                    <a href="{{ url_for('customers.customer_detail', id=return_data['customer_id']) }}">
+                        {{ return_data['customer_name'] }}
+                    </a>
+                </dd>
+
+                <dt>Return Date</dt>
+                <dd>{{ return_data['return_date'] }}</dd>
+            </dl>
+        </div>
+    </div>
+
+    <div class="card flex-1">
+        <div class="card-header">
+            <h3>Refund Total</h3>
+        </div>
+        <div class="card-body">
+            <dl class="details-list">
+                <dt style="font-weight: bold; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5em;">Total Refund</dt>
+                <dd style="font-weight: bold; font-size: 1.3em; color: var(--primary); margin-bottom: 1em;">{{ total_refund|vnd }}</dd>
+
+                <dt>Item Count</dt>
+                <dd>{{ items|length }} item(s)</dd>
+            </dl>
+        </div>
+    </div>
+</div>
+
+<!-- Return Reason -->
+{% if return_data['return_reason'] %}
+    <div class="card">
+        <div class="card-header">
+            <h3>Return Reason</h3>
+        </div>
+        <div class="card-body">
+            <p>{{ return_data['return_reason'] }}</p>
+        </div>
+    </div>
+{% endif %}
+
+<!-- Return Items -->
+<div class="card">
+    <div class="card-header">
+        <h3>Returned Items</h3>
+    </div>
+    <div class="card-body">
+        {% if items %}
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Unit Price</th>
+                            <th>Refund Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                            <tr>
+                                <td>
+                                    {{ item['name'] }}
+                                    <br>
+                                    <small class="text-muted">{{ item['product_code'] }}</small>
+                                </td>
+                                <td>{{ item['quantity']|number }}</td>
+                                <td>{{ item['unit_price']|vnd }}</td>
+                                <td><strong>{{ item['refund_amount']|vnd }}</strong></td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Subtotal -->
+            <div style="text-align: right; margin-top: 1em; padding-top: 1em; border-top: 1px solid #e2e8f0;">
+                <strong>Total Refund Amount: <span style="font-size: 1.2em; color: var(--primary);">{{ total_refund|vnd }}</span></strong>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Actions -->
+<div class="card">
+    <div class="card-header">
+        <h3>Actions</h3>
+    </div>
+    <div class="card-body">
+        <div class="button-group">
+            <a href="{{ url_for('returns.returns_list') }}" class="btn btn-outline">Back to Returns</a>
+            <a href="{{ url_for('orders.order_detail', id=return_data['original_order_id']) }}" class="btn btn-outline">View Original Order</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

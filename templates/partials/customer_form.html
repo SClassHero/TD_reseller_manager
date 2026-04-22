@@ -1,0 +1,113 @@
+<div class="modal active">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>{% if customer %}Edit{% else %}Add{% endif %} Customer</h3>
+            <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+        </div>
+
+        <form method="POST"
+              action="{% if customer %}{{ url_for('customers.update_customer', id=customer['id']) }}{% else %}{{ url_for('customers.create_customer') }}{% endif %}">
+            {% if customer %}
+                <input type="hidden" name="customer_id" value="{{ customer['id'] }}">
+            {% endif %}
+
+            <!-- Customer Code -->
+            <div class="form-group">
+                <label for="customer_code">Customer Code</label>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <input type="text"
+                           id="customer_code"
+                           name="customer_code"
+                           class="form-input"
+                           placeholder="Leave blank to auto-generate"
+                           value="{{ customer['customer_code'] if customer else suggested_code }}"
+                           style="flex:1; font-family:monospace; text-transform:uppercase;"
+                           oninput="this.value=this.value.toUpperCase()">
+                    {% if not customer %}
+                    <button type="button"
+                            class="btn btn-outline btn-sm"
+                            title="Auto-generate next available code"
+                            onclick="generateCustomerCode()">
+                        ↻ Generate
+                    </button>
+                    {% endif %}
+                </div>
+                <small class="text-muted">
+                    {% if customer %}
+                        Code can be changed, but must remain unique across all customers.
+                    {% else %}
+                        Format: KH000001. Or type your own unique code.
+                    {% endif %}
+                </small>
+            </div>
+
+            <!-- Name -->
+            <div class="form-group">
+                <label for="name">Customer Name *</label>
+                <input type="text"
+                       id="name"
+                       name="name"
+                       class="form-input"
+                       value="{{ customer['name'] if customer else '' }}"
+                       required>
+            </div>
+
+            <!-- Phone + Email row -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div class="form-group">
+                    <label for="phone">Phone</label>
+                    <input type="tel"
+                           id="phone"
+                           name="phone"
+                           class="form-input"
+                           value="{{ customer['phone'] if customer else '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email"
+                           id="email"
+                           name="email"
+                           class="form-input"
+                           value="{{ customer['email'] if customer else '' }}">
+                </div>
+            </div>
+
+            <!-- Region -->
+            <div class="form-group">
+                <label for="region">Region</label>
+                <input type="text"
+                       id="region"
+                       name="region"
+                       class="form-input"
+                       placeholder="e.g. HCM, Hanoi, Da Nang"
+                       value="{{ customer['region'] if customer else '' }}">
+            </div>
+
+            <!-- Address -->
+            <div class="form-group">
+                <label for="address">Address</label>
+                <textarea id="address"
+                          name="address"
+                          class="form-input"
+                          rows="2">{{ customer['address'] if customer else '' }}</textarea>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="this.closest('.modal').remove()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function generateCustomerCode() {
+    fetch('/customers/generate-code')
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('customer_code').value = data.code;
+        })
+        .catch(() => {});
+}
+</script>

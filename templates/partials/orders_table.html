@@ -1,0 +1,32 @@
+<table class="table">
+    <thead>
+        <tr>
+            <th>Code</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>Total</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for order in orders %}
+            <tr>
+                <td><strong>{{ order['order_code'] }}</strong></td>
+                <td>{{ order['order_date'] }}</td>
+                <td>{{ order['customer_name'] }}</td>
+                <td>{{ order['total_amount']|vnd }}</td>
+                <td>
+                    <span class="badge badge-{{ order['order_status'] }}">
+                        {{ order['order_status']|title }}
+                    </span>
+                </td>
+                <td>
+                    <a href="{{ url_for('orders.order_detail', id=order['id']) }}" class="btn btn-sm btn-outline">
+                        View
+                    </a>
+                </td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}{{ customer['name'] }} - Customers - Inventory Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>{{ customer['name'] }}</h1>
+        <p class="text-muted">Customer Code: {{ customer['customer_code'] }}</p>
+    </div>
+    <button class="btn btn-primary" hx-get="{{ url_for('customers.edit_customer', id=customer['id']) }}" hx-target="#modal-container">
+        Edit
+    </button>
+</div>
+
+<!-- Customer Info -->
+<div class="cards-row">
+    <div class="card flex-1">
+        <div class="card-header">
+            <h3>Contact Information</h3>
+        </div>
+        <div class="card-body">
+            <dl class="details-list">
+                <dt>Email</dt>
+                <dd>{{ customer['email'] or 'N/A' }}</dd>
+
+                <dt>Phone</dt>
+                <dd>{{ customer['phone'] or 'N/A' }}</dd>
+
+                <dt>Address</dt>
+                <dd>{{ customer['address'] or 'N/A' }}</dd>
+            </dl>
+        </div>
+    </div>
+
+    <div class="card flex-1">
+        <div class="card-header">
+            <h3>Financial Summary</h3>
+        </div>
+        <div class="card-body">
+            <dl class="details-list">
+                <dt>Total Spent</dt>
+                <dd class="stat-value">{{ customer['total_spent']|vnd }}</dd>
+
+                <dt>Outstanding Debt</dt>
+                <dd class="stat-value" style="color: var(--danger);">{{ customer['outstanding_debt']|vnd }}</dd>
+            </dl>
+        </div>
+    </div>
+</div>
+
+<!-- Order History -->
+<div class="card">
+    <div class="card-header">
+        <h3>Order History</h3>
+    </div>
+    <div class="card-body">
+        {% if orders %}
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>Date</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                            <tr>
+                                <td><a href="{{ url_for('orders.order_detail', id=order['id']) }}">{{ order['order_code'] }}</a></td>
+                                <td>{{ order['order_date'] }}</td>
+                                <td>{{ order['total_amount']|vnd }}</td>
+                                <td>
+                                    <span class="badge badge-{{ order['order_status'] }}">
+                                        {{ order['order_status']|title }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('orders.order_detail', id=order['id']) }}" class="btn btn-sm btn-outline">
+                                        View
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted">No orders from this customer yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

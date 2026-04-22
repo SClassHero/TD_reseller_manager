@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Inventory - Inventory Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Inventory Intakes</h1>
+    <button class="btn btn-primary" hx-get="{{ url_for('inventory.new_intake') }}" hx-target="#modal-container">
+        + Add Intake
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if lots %}
+            <div class="table-wrapper">
+                {% include 'partials/inventory_table.html' %}
+            </div>
+        {% else %}
+            <p class="text-muted">No inventory intakes found.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
