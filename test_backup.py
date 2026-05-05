@@ -17,6 +17,7 @@ import backup as bk
 tmp_backups = tempfile.mkdtemp()
 bk.BACKUPS_DIR = tmp_backups
 
+from version import APP_VERSION
 import app as application
 app = application.app
 app.config['TESTING'] = True
@@ -84,6 +85,7 @@ def run_tests():
             assert 'backup_info.json' in names
             info = json.loads(zf.read('backup_info.json'))
             assert info['schema_version'] == db_module.SCHEMA_VERSION
+            assert info['app_version'] == APP_VERSION
             assert info['backup_type'] == 'manual'
         print(f'5. ZIP contents valid (schema v{info["schema_version"]})')
         passed += 1

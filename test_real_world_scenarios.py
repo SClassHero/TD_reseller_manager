@@ -540,6 +540,9 @@ def run():
                          (img_product['id'],))
         img_path = os.path.join(_UPLOAD_DIR, str(img_product['id']), img_row['filename'])
         check(os.path.exists(img_path), 'Uploaded image file exists on disk')
+        served_img = c.get(f"/product-uploads/{img_product['id']}/{img_row['filename']}")
+        status(served_img, 200, 'Uploaded product image is served from configured upload folder')
+        served_img.close()
         post(c, f'/products/{img_product["id"]}/images/{img_row["id"]}/delete', {})
         eq(db_value('SELECT COUNT(*) FROM product_images WHERE id = ?', (img_row['id'],)), 0,
            'Deleted product image row is removed')

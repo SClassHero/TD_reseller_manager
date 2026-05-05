@@ -15,19 +15,26 @@ backward compatibility). Role is stored in session['role']: 'admin' or 'limited'
 import logging
 import os
 import secrets
+import sys
 import threading
 import time
 from datetime import datetime, timedelta
 
-from flask import Flask, session, redirect, url_for, render_template, request, flash, g
+from flask import Flask, session, redirect, url_for, render_template, request, flash, g, send_from_directory
 from werkzeug.security import check_password_hash, generate_password_hash
 from db import init_db, get_db
 from auth import current_role, enforce_limited_access, is_admin
+from version import APP_VERSION
 
 _log = logging.getLogger(__name__)
 _backup_lock = threading.Lock()
+_BASE_DIR = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
 
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    template_folder=os.path.join(_BASE_DIR, 'templates'),
+    static_folder=os.path.join(_BASE_DIR, 'static'),
+)
 
 # Persistent secret key — survives restarts (stored in .secret_key or a configured data path)
 _SECRET_KEY_FILE = os.environ.get(
@@ -86,7 +93,7 @@ app.secret_key = _load_or_create_secret_key(_SECRET_KEY_FILE)
 # Upload folder configuration
 UPLOAD_FOLDER = os.environ.get(
     'INVENTORY_UPLOADS_DIR',
-    os.path.join(os.path.dirname(__file__), 'static', 'uploads', 'products')
+    os.path.join(_BASE_DIR, 'static', 'uploads', 'products')
 )
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -262,12 +269,23 @@ def inject_auth_info():
     }
 
 
+@app.context_processor
+def inject_app_version():
+    return {'app_version': APP_VERSION}
+
+
 # Currency switch route
 @app.route('/switch-currency', methods=['POST'])
 def switch_currency():
     current = session.get('display_currency', getattr(g, 'default_currency', 'VND'))
     session['display_currency'] = 'USD' if current == 'VND' else 'VND'
     return redirect(request.referrer or url_for('dashboard.dashboard'))
+
+
+@app.route('/product-uploads/<path:filename>')
+def product_upload(filename):
+    """Serve product photos from the configured persistent upload folder."""
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
 _LOGIN_MAX_ATTEMPTS = 5

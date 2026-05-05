@@ -11,6 +11,8 @@ A self-hosted inventory management web app for a small Vietnamese e-commerce bus
 Built with Flask + HTMX + SQLite. Runs on a Windows PC or NAS (accessible over the local network).
 
 **Default URL:** `http://localhost:5000`
+**App version:** `0.5.0` (see `version.py` and `CHANGELOG.md`)
+**Database schema version:** `5` (see `db.SCHEMA_VERSION` and `SCHEMA_CHANGELOG.md`)
 **Default admin login:** username `admin`, password `admin123` (stored as a Werkzeug password hash)
 **Primary currency:** VND (Vietnamese Dong), with a live USD toggle
 
@@ -37,12 +39,12 @@ openpyxl is only needed for XLSX export; CSV export works without it.
 ```bash
 python test_app.py                    # 396 tests: app CRUD, role access, mobile markup, exports, CSRF
 python test_backup.py                 # 16 tests: backup/restore/reset/deployment smoke tests
-python test_real_world_scenarios.py   # 129 tests: golden-ledger FIFO/accounting
+python test_real_world_scenarios.py   # 130 tests: golden-ledger FIFO/accounting
 python test_edge_cases.py             # 78 tests: cancellation, guards, cumulative validation
 python test_edge_cases_2.py           # 53 tests: partial returns, overpayment, recovery code
 ```
 
-Total: 672 tests, all passing. Auto-backup is suppressed under Flask `TESTING` mode.
+Total: 673 tests, all passing. Auto-backup is suppressed under Flask `TESTING` mode.
 
 ---
 
@@ -66,6 +68,11 @@ inventory_app_v5/
 ├── auth.py                 # login/admin decorators and limited-role guard
 ├── list_utils.py           # Shared list search/sort/pagination helpers
 ├── db.py                   # Schema, init_db(), generate_code(), generate_product_code()
+├── version.py              # App release version metadata
+├── CHANGELOG.md            # App release history
+├── PACKAGING_WINDOWS.md    # Portable Windows build guide
+├── run_desktop.py          # Local packaged-app launcher
+├── packaging/windows/      # PyInstaller portable build script
 ├── Dockerfile              # Container image for Synology/Container Manager deployment
 ├── docker-compose.synology.yml
 ├── DEPLOY_SYNOLOGY.md      # Step-by-step DSM 7 deployment guide
@@ -294,6 +301,20 @@ For Synology Container Manager/Docker, these can be redirected into a mounted da
 - `INVENTORY_UPLOADS_DIR`
 
 `docker-compose.synology.yml` maps DB/backups/secret key to `/data`; it also mounts `./data/uploads/products` into `/app/static/uploads/products` so product photos persist while still being served by Flask's static route. See `DEPLOY_SYNOLOGY.md`.
+
+For lay-user local Windows usage, `run_desktop.py` and `packaging/windows/build_portable.ps1` create a portable folder in `dist/TDResellerManager/`. The packaged app stores runtime data in a sibling `data/` folder and binds to `127.0.0.1:5000`.
+
+---
+
+## App Versioning
+
+App release versions live in `version.py` as `APP_VERSION` and are documented in `CHANGELOG.md`.
+
+Keep app versioning separate from `db.SCHEMA_VERSION`:
+
+- Bump `APP_VERSION` for release notes, packaged builds, and Git tags.
+- Bump `SCHEMA_VERSION` only for structural database changes and update `SCHEMA_CHANGELOG.md`.
+- Use Git tags like `v0.5.0` for release checkpoints.
 
 ---
 

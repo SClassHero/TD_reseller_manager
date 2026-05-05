@@ -44,6 +44,14 @@ password: admin123
 
 Change the password immediately in **Settings**, then generate and save a recovery code.
 
+## Current Version
+
+App version: `0.5.0`
+
+Database schema version: `5`
+
+App release versions are tracked in [CHANGELOG.md](CHANGELOG.md). Database structure changes are tracked separately in [SCHEMA_CHANGELOG.md](SCHEMA_CHANGELOG.md).
+
 ## Daily Workflow
 
 ### 1. Set Up Products
@@ -226,6 +234,14 @@ XLSX export requires `openpyxl`, included in `requirements.txt`.
 python app.py
 ```
 
+For non-technical Windows users, build a portable local app folder with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File packaging\windows\build_portable.ps1
+```
+
+The user can then double-click `Start TD Reseller Manager.bat` from the generated `dist\TDResellerManager` folder. See [PACKAGING_WINDOWS.md](PACKAGING_WINDOWS.md).
+
 ### Synology NAS
 
 Recommended deployment is Synology Container Manager/Docker.
@@ -276,12 +292,14 @@ python test_edge_cases.py
 python test_edge_cases_2.py
 ```
 
-Current documented baseline: 672 passing tests.
+Current documented baseline: 673 passing tests.
 
 ## Project Docs
 
 - [USERGUIDE.md](USERGUIDE.md): detailed user manual and workflows
 - [DEPLOY_SYNOLOGY.md](DEPLOY_SYNOLOGY.md): Synology deployment guide
+- [PACKAGING_WINDOWS.md](PACKAGING_WINDOWS.md): portable Windows build guide
+- [CHANGELOG.md](CHANGELOG.md): app release history
 - [SCHEMA_CHANGELOG.md](SCHEMA_CHANGELOG.md): database schema history
 - [CLAUDE.md](CLAUDE.md): technical reference for Claude Code sessions
 - [AGENTS.md](AGENTS.md): technical reference for Codex sessions

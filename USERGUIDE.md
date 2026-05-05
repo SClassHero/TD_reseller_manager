@@ -21,7 +21,8 @@
 12. [Common Scenarios (Step-by-Step)](#12-common-scenarios-step-by-step)
 13. [Glossary](#13-glossary)
 14. [Password Management and Access Control](#14-password-management-and-access-control)
-15. [Running on a Synology NAS (Home + Remote Access)](#15-running-on-a-synology-nas-home--remote-access)
+15. [Local Windows Use Without Command Line](#15-local-windows-use-without-command-line)
+16. [Running on a Synology NAS (Home + Remote Access)](#16-running-on-a-synology-nas-home--remote-access)
 
 ---
 
@@ -914,7 +915,47 @@ RECOVERY CODE:      Settings → Password Recovery Code → Generate (save the c
 
 ---
 
-## 15. Running on a Synology NAS (Home + Remote Access)
+## 15. Local Windows Use Without Command Line
+
+For a non-technical local-only user, the app can be packaged as a portable
+Windows folder. The end user does not need to install Python or type commands.
+
+The developer builds it once:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File packaging\windows\build_portable.ps1
+```
+
+Then share this folder:
+
+```text
+dist\TDResellerManager\
+```
+
+The user starts the app by double-clicking:
+
+```text
+Start TD Reseller Manager.bat
+```
+
+The app opens in the browser at:
+
+```text
+http://127.0.0.1:5000
+```
+
+All local data stays inside:
+
+```text
+TDResellerManager\data\
+```
+
+Copy that whole folder for backup or to move the local app to another Windows
+PC. See `PACKAGING_WINDOWS.md` for build details.
+
+---
+
+## 16. Running on a Synology NAS (Home + Remote Access)
 
 This section covers running the app on a **Synology DS218+** with DSM 7 so you
 and your wife can access it from your phones, both at home and away from home.
@@ -923,7 +964,7 @@ The recommended deployment is now **Synology Container Manager/Docker**. It keep
 the app code separate from the live database and puts runtime data in a persistent
 `data/` folder. See `DEPLOY_SYNOLOGY.md` for the full click-by-click deployment guide.
 
-### 15.1 Is the App Suitable for This?
+### 16.1 Is the App Suitable for This?
 
 **Yes**, the app is already designed for this:
 
@@ -939,7 +980,7 @@ Three things to set up: **Container Manager**, **remote access**, and **in-app p
 
 ---
 
-### 15.2 Step 1 — Install Container Manager
+### 16.2 Step 1 — Install Container Manager
 
 1. In DSM, open **Package Center**.
 2. Search for **Container Manager**.
@@ -965,7 +1006,7 @@ That folder contains the clean NAS `inventory.db`, `.secret_key`, backups, and p
 
 ---
 
-### 15.3 Step 2 — Create the Container Project
+### 16.3 Step 2 — Create the Container Project
 
 1. Create this folder on the NAS:
    ```
@@ -986,7 +1027,7 @@ Or reserve the NAS IP in your router so the address stays stable.
 
 ---
 
-### 15.4 Step 3 — Home Access (Local WiFi)
+### 16.4 Step 3 — Home Access (Local WiFi)
 
 When you're at home on the same WiFi as the NAS:
 
@@ -1002,7 +1043,7 @@ address never changes.
 
 ---
 
-### 15.5 Step 4 — Remote Access (Away From Home)
+### 16.5 Step 4 — Remote Access (Away From Home)
 
 Current deployment route: **Tailscale**.
 
@@ -1027,7 +1068,7 @@ later only if the network allows inbound HTTPS traffic.
 
 ---
 
-### 15.6 Step 5 — In-App Password Recovery (Critical for Remote Use)
+### 16.6 Step 5 — In-App Password Recovery (Critical for Remote Use)
 
 If you forget your password while away from home, SSH terminal access won't
 be convenient. The app has a built-in recovery code for exactly this scenario.
@@ -1056,7 +1097,7 @@ be convenient. The app has a built-in recovery code for exactly this scenario.
 
 ---
 
-### 15.7 Recommended Setup Summary
+### 16.7 Recommended Setup Summary
 
 For a household with two phone users:
 
@@ -1071,7 +1112,7 @@ For a household with two phone users:
 
 ---
 
-### 15.8 Troubleshooting
+### 16.8 Troubleshooting
 
 **App not starting after reboot:**
 - Check Container Manager → Project → `inventory-app` logs

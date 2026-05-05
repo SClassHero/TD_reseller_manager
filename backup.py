@@ -60,6 +60,7 @@ def create_backup(backup_type='auto'):
     Returns the backup filename on success. Raises on error.
     """
     from db import SCHEMA_VERSION
+    from version import APP_VERSION
 
     os.makedirs(BACKUPS_DIR, exist_ok=True)
     now = datetime.now()
@@ -97,7 +98,7 @@ def create_backup(backup_type='auto'):
 
                 zf.writestr('backup_info.json', json.dumps({
                     'schema_version': SCHEMA_VERSION,
-                    'app_version': 'v5',
+                    'app_version': APP_VERSION,
                     'created_at': datetime.now().isoformat(),
                     'backup_type': backup_type,
                     'photos_count': photos_count,
