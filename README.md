@@ -48,7 +48,7 @@ The UI can be toggled between English and Vietnamese from the top header. This i
 
 ## Current Version
 
-App version: `0.6.0`
+App version: `0.7.0`
 
 Database schema version: `5`
 
