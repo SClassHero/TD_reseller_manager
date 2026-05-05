@@ -4,4 +4,4 @@ App versions are for releases and GitHub tags. They are separate from
 db.SCHEMA_VERSION, which only tracks database structure compatibility.
 """
 
-APP_VERSION = '0.6.0'
+APP_VERSION = '0.7.0'

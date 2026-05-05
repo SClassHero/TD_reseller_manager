@@ -7,10 +7,20 @@
     <h1>Export Data</h1>
 </div>
 
-<p class="text-muted" style="margin-bottom:1.5rem;">
-    Download your data as CSV (opens in any spreadsheet) or Excel XLSX (requires openpyxl installed on the server).
-    All monetary values are in VND. Dates are in YYYY-MM-DD format.
-</p>
+<div class="card" style="margin-bottom:1.25rem; border-left:4px solid var(--primary);">
+    <div class="card-body" style="padding:0.9rem 1.1rem;">
+        <p style="margin:0; font-size:0.9rem; color:var(--text-light);">
+            <strong>What you can export:</strong> Products, Customers, Inventory, Categories, Orders, Returns, and Refunds.
+            CSV files open in any spreadsheet app. Excel XLSX requires openpyxl on the server.
+        </p>
+        <ul style="margin:0.6rem 0 0 1.2rem; font-size:0.85rem; color:var(--text-light);">
+            <li>All monetary values are in <strong>VND</strong> (whole numbers).</li>
+            <li>Orders export one row per order (summary only — no line-item detail).</li>
+            <li>Importing back is supported for: <strong>Categories, Products, Customers, and Inventory</strong>. Go to <a href="{{ url_for('imports.import_page') }}">Import</a> to re-import edited exports.</li>
+            <li>Returns, Refunds, and Orders cannot be re-imported (too many business rules to replay safely).</li>
+        </ul>
+    </div>
+</div>
 
 <!-- Full export -->
 <div class="card" style="margin-bottom:1rem;">
@@ -18,21 +28,22 @@
         <h2>Full Export (All Tables)</h2>
     </div>
     <div class="card-body">
-        <p class="text-muted">Download everything in one Excel file with separate sheets for Products, Customers, Orders, and Inventory.</p>
+        <p class="text-muted">Everything in one Excel file — 7 sheets: Products, Customers, Orders, Inventory, Categories, Returns, Refunds.</p>
         <a href="{{ url_for('exports.export_all_xlsx') }}" class="btn btn-primary">Download All as XLSX</a>
     </div>
 </div>
 
-<!-- Individual exports -->
-{% set export_types = [
-    ('products',  'Products',  'All active products with current stock levels.'),
-    ('customers', 'Customers', 'All customers with order count, total spent, and outstanding debt.'),
-    ('orders',    'Orders',    'All orders with status, amounts, and payment info.'),
-    ('inventory', 'Inventory', 'All inventory intake lots with costs and remaining quantities.'),
+<!-- Individual exports — importable data first -->
+<h3 style="margin:1.25rem 0 0.75rem; font-size:1rem; color:var(--text-light); text-transform:uppercase; letter-spacing:.05em;">Re-importable data</h3>
+{% set importable_types = [
+    ('categories', 'Categories', 'All categories. Can be re-imported by name.'),
+    ('products',   'Products',   'All active products with current stock levels. Can be re-imported — include Product Code to preserve codes.'),
+    ('customers',  'Customers',  'All customers with order count, total spent, and outstanding debt. Can be re-imported — include Customer Code to preserve codes.'),
+    ('inventory',  'Inventory',  'All inventory intake lots with costs and remaining quantities. Can be re-imported using product_code.'),
 ] %}
 
-<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:1rem;">
-{% for key, label, description in export_types %}
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:1rem; margin-bottom:1.25rem;">
+{% for key, label, description in importable_types %}
 <div class="card">
     <div class="card-header">
         <h2>{{ label }}</h2>
@@ -40,12 +51,33 @@
     <div class="card-body">
         <p class="text-muted" style="font-size:0.9rem; margin-bottom:1rem;">{{ description }}</p>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <a href="{{ url_for('exports.export_csv', export_type=key) }}" class="btn btn-outline btn-sm">
-                CSV
-            </a>
-            <a href="{{ url_for('exports.export_xlsx', export_type=key) }}" class="btn btn-outline btn-sm">
-                Excel (XLSX)
-            </a>
+            <a href="{{ url_for('exports.export_csv', export_type=key) }}" class="btn btn-outline btn-sm">CSV</a>
+            <a href="{{ url_for('exports.export_xlsx', export_type=key) }}" class="btn btn-outline btn-sm">Excel (XLSX)</a>
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>
+
+<!-- Read-only exports -->
+<h3 style="margin:0 0 0.75rem; font-size:1rem; color:var(--text-light); text-transform:uppercase; letter-spacing:.05em;">Read-only data (cannot be re-imported)</h3>
+{% set readonly_types = [
+    ('orders',   'Orders',   'All orders with status, amounts, and payment totals. One row per order — no line items.'),
+    ('returns',  'Returns',  'All return records with reason, item counts, and linked refund codes.'),
+    ('refunds',  'Refunds',  'All refunds with amount, method, reason, and linked return codes.'),
+] %}
+
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:1rem;">
+{% for key, label, description in readonly_types %}
+<div class="card">
+    <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
+        <h2>{{ label }}</h2>
+    </div>
+    <div class="card-body">
+        <p class="text-muted" style="font-size:0.9rem; margin-bottom:1rem;">{{ description }}</p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <a href="{{ url_for('exports.export_csv', export_type=key) }}" class="btn btn-outline btn-sm">CSV</a>
+            <a href="{{ url_for('exports.export_xlsx', export_type=key) }}" class="btn btn-outline btn-sm">Excel (XLSX)</a>
         </div>
     </div>
 </div>

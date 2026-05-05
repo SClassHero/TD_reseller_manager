@@ -42,7 +42,7 @@
                                    disabled>
                         </label>
                         <label>
-                            <span>{{ _('Refund Amount') }}</span>
+                            <span>{{ _('Refund Amount') }} <small class="text-muted" style="font-weight:normal;">(VND)</small></span>
                             <input type="number"
                                    class="refund-amount-input"
                                    value="{{ item['line_total'] }}"
@@ -83,7 +83,7 @@
                             </p>
                             <div class="return-item-fields">
                                 <label>
-                                    <span>{{ _('Returned Item Value / Unit') }}</span>
+                                    <span>{{ _('Returned Item Value / Unit') }} <small class="text-muted" style="font-weight:normal;">(VND)</small></span>
                                     <input type="number"
                                            class="restock-unit-cost-input"
                                            value="0"
@@ -92,7 +92,7 @@
                                            disabled>
                                 </label>
                                 <label>
-                                    <span>{{ _('Extra Restock Cost') }}</span>
+                                    <span>{{ _('Extra Restock Cost') }} <small class="text-muted" style="font-weight:normal;">(VND)</small></span>
                                     <input type="number"
                                            class="restock-shipping-cost-input"
                                            value="0"

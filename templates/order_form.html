@@ -52,9 +52,9 @@
                             <tr>
                                 <th style="min-width:200px;">{{ _('Product') }}</th>
                                 <th style="width:90px;">{{ _('Qty') }}</th>
-                                <th style="width:130px;">{{ _('Unit Price') }}</th>
+                                <th style="width:130px;">{{ _('Unit Price') }} <small class="text-muted">(VND)</small></th>
                                 <th style="width:100px;">{{ _('Discount %') }}</th>
-                                <th style="width:130px;">{{ _('Line Total') }}</th>
+                                <th style="width:130px;">{{ _('Line Total') }} <small class="text-muted">(VND)</small></th>
                                 <th style="width:70px;">{{ _('Remove') }}</th>
                             </tr>
                         </thead>
@@ -69,16 +69,21 @@
             </div>
 
             <!-- Totals + Notes -->
+            {% if display_currency == 'USD' %}
+            <div class="form-section" style="background:#fffbeb; border:1px solid #fcd34d; border-radius:6px; padding:0.6rem 0.9rem; margin-bottom:1rem; font-size:0.875rem; color:#92400e;">
+                ⚠️ You are viewing prices in USD, but <strong>enter all amounts below in VND</strong>. The page display is conversion-only — the saved values are always stored in VND.
+            </div>
+            {% endif %}
             <div class="form-section">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="discount_amount">Order Discount (₫)</label>
+                        <label for="discount_amount">Order Discount <span class="text-muted" style="font-weight:normal;">(VND)</span></label>
                         <input type="number" id="discount_amount" name="discount_amount"
                                class="form-input" min="0" step="1"
                                value="{{ order['discount_amount']|int if order else 0 }}">
                     </div>
                     <div class="form-group">
-                        <label for="shipping_fee">Shipping Fee (₫)</label>
+                        <label for="shipping_fee">Shipping Fee <span class="text-muted" style="font-weight:normal;">(VND)</span></label>
                         <input type="number" id="shipping_fee" name="shipping_fee"
                                class="form-input" min="0" step="1"
                                value="{{ order['shipping_fee']|int if order else 0 }}">
@@ -101,10 +106,10 @@
                               placeholder="{{ _('Order notes...') }}">{{ order['notes'] or '' if order else '' }}</textarea>
                 </div>
 
-                <!-- Running total preview -->
+                <!-- Running total preview (always in VND — input values are VND) -->
                 <div style="text-align:right; font-size:0.95rem; color:var(--text-light); margin-top:0.5rem;">
                     Subtotal: <strong id="preview-subtotal" style="color:var(--text);">₫0</strong>
-                    &nbsp;·&nbsp; Estimated Total:
+                    &nbsp;·&nbsp; Estimated Total (VND):
                     <strong id="preview-total" style="color:var(--primary); font-size:1.1rem;">₫0</strong>
                 </div>
             </div>

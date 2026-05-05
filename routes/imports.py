@@ -9,7 +9,7 @@ USD intake rows are converted to VND using the current settings.vnd_usd_rate at 
 """
 import re
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from db import get_db, generate_code
+from db import get_db, generate_code, generate_product_code
 from auth import login_required
 import csv
 import io
@@ -27,11 +27,95 @@ def import_page():
     return render_template('import.html')
 
 
+@imports_bp.route('/categories', methods=['POST'])
+@login_required
+def import_categories():
+    """Import categories from CSV.
+    Expected columns: name, description (description is optional)
+    Rows with a name that already exists are skipped with a warning (no update).
+    """
+    if 'file' not in request.files:
+        flash('No file selected', 'error')
+        return redirect(url_for('imports.import_page'))
+
+    file = request.files['file']
+    if file.filename == '':
+        flash('No file selected', 'error')
+        return redirect(url_for('imports.import_page'))
+
+    if not file.filename.endswith('.csv'):
+        flash('Please upload a CSV file', 'error')
+        return redirect(url_for('imports.import_page'))
+
+    db = get_db()
+    try:
+        cursor = db.cursor()
+        stream = io.StringIO(file.stream.read().decode('utf-8'))
+        csv_data = csv.DictReader(stream)
+
+        success_count = 0
+        skip_count = 0
+        error_count = 0
+        errors = []
+
+        for row_num, row in enumerate(csv_data, start=2):
+            try:
+                name = row.get('name', '').strip()
+                description = row.get('description', '').strip()
+
+                if not name:
+                    errors.append(f"Row {row_num}: Category name is required")
+                    error_count += 1
+                    continue
+
+                cursor.execute('SELECT id FROM categories WHERE name = ?', (name,))
+                if cursor.fetchone():
+                    skip_count += 1
+                    continue
+
+                cursor.execute(
+                    'INSERT INTO categories (name, description) VALUES (?, ?)',
+                    (name, description or None)
+                )
+                db.commit()
+                success_count += 1
+
+            except Exception as e:
+                errors.append(f"Row {row_num}: {str(e)}")
+                error_count += 1
+                db.rollback()
+
+        parts = []
+        if success_count > 0:
+            parts.append(f'Imported {success_count} categories')
+        if skip_count > 0:
+            parts.append(f'{skip_count} skipped (name already exists)')
+        if parts:
+            flash('. '.join(parts) + '.', 'success')
+        if error_count > 0:
+            error_msg = f'{error_count} rows failed. '
+            if errors:
+                error_msg += 'Errors: ' + '; '.join(errors[:5])
+                if len(errors) > 5:
+                    error_msg += f' and {len(errors) - 5} more'
+            flash(error_msg, 'error')
+
+        return redirect(url_for('imports.import_page'))
+
+    except Exception as e:
+        flash(f'Error processing file: {str(e)}', 'error')
+        db.rollback()
+        return redirect(url_for('imports.import_page'))
+    finally:
+        db.close()
+
+
 @imports_bp.route('/products', methods=['POST'])
 @login_required
 def import_products():
     """Import products from CSV.
     Expected columns: name, category, sale_price, cost_price, barcode, min_stock_level
+    Optional column: product_code (use CSV-supplied code; auto-generate if absent or blank)
     """
     if 'file' not in request.files:
         flash('No file selected', 'error')
@@ -58,6 +142,7 @@ def import_products():
 
         for row_num, row in enumerate(csv_data, start=2):  # Start at 2 (headers are row 1)
             try:
+                product_code = row.get('product_code', '').strip()
                 name = row.get('name', '').strip()
                 category = row.get('category', '').strip()
                 sale_price = row.get('sale_price', '0')
@@ -92,8 +177,9 @@ def import_products():
                         cursor.execute('SELECT last_insert_rowid() as id')
                         category_id = cursor.fetchone()['id']
 
-                # Generate product code
-                product_code = generate_code('SP')
+                # Use CSV-supplied code if present, otherwise generate from category
+                if not product_code:
+                    product_code = generate_product_code(category_id=category_id, db_conn=db)
 
                 # Insert product
                 cursor.execute('''
@@ -104,7 +190,8 @@ def import_products():
                 success_count += 1
 
             except Exception as e:
-                errors.append(f"Row {row_num}: {str(e)}")
+                ctx = f" (code {product_code!r})" if product_code else ""
+                errors.append(f"Row {row_num}{ctx}: {str(e)}")
                 error_count += 1
                 db.rollback()
 
@@ -132,7 +219,9 @@ def import_products():
 @login_required
 def import_customers():
     """Import customers from CSV.
-    Expected columns: name, email, phone, address, region
+    Expected columns: customer_code (optional), name, email, phone, address, region
+    If customer_code is blank or absent, one is auto-generated (KH######).
+    Rows with a duplicate customer_code are skipped with an error.
     """
     if 'file' not in request.files:
         flash('No file selected', 'error')
@@ -159,6 +248,7 @@ def import_customers():
 
         for row_num, row in enumerate(csv_data, start=2):
             try:
+                customer_code = row.get('customer_code', '').strip()
                 name = row.get('name', '').strip()
                 email = row.get('email', '').strip()
                 phone = row.get('phone', '').strip()
@@ -175,8 +265,9 @@ def import_customers():
                     error_count += 1
                     continue
 
-                # Generate customer code
-                customer_code = generate_code('KH')
+                # Use CSV-supplied code if provided, otherwise auto-generate
+                if not customer_code:
+                    customer_code = generate_code('KH')
 
                 # Insert customer
                 cursor.execute('''
@@ -215,7 +306,8 @@ def import_customers():
 @login_required
 def import_inventory():
     """Import inventory from CSV.
-    Expected columns: product_code (or product_name), quantity, cost_price, intake_date, notes
+    Expected columns: product_code (or product_name), quantity, cost_price,
+                      shipping_cost, currency, intake_date, notes
     """
     if 'file' not in request.files:
         flash('No file selected', 'error')
@@ -246,6 +338,8 @@ def import_inventory():
                 product_name = row.get('product_name', '').strip()
                 quantity = row.get('quantity', '0')
                 cost_price = row.get('cost_price', '0')
+                shipping_cost = row.get('shipping_cost', '0')
+                currency = row.get('currency', 'VND').strip().upper() or 'VND'
                 intake_date = row.get('intake_date', '')
                 notes = row.get('notes', '').strip()
 
@@ -271,8 +365,9 @@ def import_inventory():
                 try:
                     quantity = int(quantity)
                     cost_price = float(cost_price) if cost_price else 0
+                    shipping_cost = float(shipping_cost) if shipping_cost else 0
                 except ValueError as e:
-                    errors.append(f"Row {row_num}: Invalid quantity or cost_price - {str(e)}")
+                    errors.append(f"Row {row_num}: Invalid quantity, cost_price, or shipping_cost - {str(e)}")
                     error_count += 1
                     continue
 
@@ -294,9 +389,11 @@ def import_inventory():
 
                 # Insert inventory record
                 cursor.execute('''
-                    INSERT INTO inventory (product_id, quantity, remaining_quantity, cost_price, intake_date, notes)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                ''', (product_id, quantity, quantity, cost_price, intake_date, notes or None))
+                    INSERT INTO inventory (product_id, quantity, remaining_quantity,
+                                          cost_price, shipping_cost, currency, intake_date, notes)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (product_id, quantity, quantity, cost_price,
+                      shipping_cost, currency, intake_date, notes or None))
                 db.commit()
                 success_count += 1
 

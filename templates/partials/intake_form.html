@@ -40,7 +40,7 @@
 
                 <div class="modal-field-grid">
                     <div class="form-group">
-                        <label for="cost_price">{{ _('Cost Price per Unit') }}</label>
+                        <label for="cost_price">{{ _('Cost Price per Unit') }} <small class="text-muted" style="font-weight:normal;">({{ _('in currency below') }})</small></label>
                         <input type="number"
                                id="cost_price"
                                name="cost_price"
@@ -70,8 +70,8 @@
                     <div class="form-group">
                         <label for="currency">{{ _('Currency') }}</label>
                         <select id="currency" name="currency" class="form-input">
-                            <option value="VND" {% if display_currency == 'VND' %}selected{% endif %}>VND</option>
-                            <option value="USD" {% if display_currency == 'USD' %}selected{% endif %}>USD</option>
+                            <option value="VND" selected>VND</option>
+                            <option value="USD">USD</option>
                         </select>
                     </div>
 

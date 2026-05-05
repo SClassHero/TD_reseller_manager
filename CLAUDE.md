@@ -11,7 +11,7 @@ A self-hosted inventory management web app for a small Vietnamese e-commerce bus
 Built with Flask + HTMX + SQLite. Runs on a Windows PC or NAS (accessible over the local network).
 
 **Default URL:** `http://localhost:5000`
-**App version:** `0.6.0` (see `version.py` and `CHANGELOG.md`)
+**App version:** `0.7.0` (see `version.py` and `CHANGELOG.md`)
 **Database schema version:** `5` (see `db.SCHEMA_VERSION` and `SCHEMA_CHANGELOG.md`)
 **Default admin login:** username `admin`, password `admin123` (stored as a Werkzeug password hash)
 **Primary currency:** VND (Vietnamese Dong), with a live USD toggle
@@ -42,9 +42,13 @@ python test_backup.py                 # 16 tests: backup/restore/reset/deploymen
 python test_real_world_scenarios.py   # 130 tests: golden-ledger FIFO/accounting
 python test_edge_cases.py             # 78 tests: cancellation, guards, cumulative validation
 python test_edge_cases_2.py           # 53 tests: partial returns, overpayment, recovery code
+python test_images.py                 # 25 tests: product image upload, delete, type guard, max-3 limit
+python test_backup_images.py          # 18 tests: backup/restore including product photos
+python test_import_export.py          # 83 tests: import/export correctness, all 3 import bugs verified
+python test_currency_ui.py            # 52 tests: currency label audit, USD warning banners, new exports/imports
 ```
 
-Total: 702 tests, all passing. Auto-backup is suppressed under Flask `TESTING` mode.
+Total: 880 tests, all passing. Auto-backup is suppressed under Flask `TESTING` mode.
 
 ---
 
@@ -348,7 +352,7 @@ Do not translate backend identifiers, database values, routes, status codes, acc
 
 ## Implementation Status
 
-All major features are complete and tested (702 tests passing). Full CRUD for Products, Categories, Customers, Inventory, Orders, Returns, Refunds, Payments, Reports, Export, Import. FIFO stock allocation, order state machine, customer debt, write-offs, multi-role auth, backup/restore, mobile-responsive UI, display-only English/Vietnamese UI toggle, Synology Container Manager/NAS deployment. See test files and the sections above for behavioral details.
+All major features are complete and tested (880 tests passing). Full CRUD for Products, Categories, Customers, Inventory, Orders, Returns, Refunds, Payments, Reports, Export, Import. FIFO stock allocation, order state machine, customer debt, write-offs, multi-role auth, backup/restore, mobile-responsive UI, display-only English/Vietnamese UI toggle, Synology Container Manager/NAS deployment. See test files and the sections above for behavioral details.
 
 ---
 

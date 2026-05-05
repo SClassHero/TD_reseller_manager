@@ -42,9 +42,12 @@ python test_backup.py                 # 16 tests: backup/restore/reset/deploymen
 python test_real_world_scenarios.py   # 130 tests: golden-ledger FIFO/accounting
 python test_edge_cases.py             # 78 tests: cancellation, guards, cumulative validation
 python test_edge_cases_2.py           # 53 tests: partial returns, overpayment, recovery code
+python test_images.py                 # 25 tests: product image upload, delete, type guard, max-3 limit
+python test_backup_images.py          # 18 tests: backup/restore including product photos
+python test_import_export.py          # 83 tests: import/export correctness, all 3 import bugs verified
 ```
 
-Total: 702 tests, all passing. Auto-backup is suppressed under Flask `TESTING` mode.
+Total: 828 tests, all passing. Auto-backup is suppressed under Flask `TESTING` mode.
 
 ---
 

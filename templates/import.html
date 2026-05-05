@@ -5,27 +5,80 @@
 {% block content %}
 <div class="page-header">
     <h1>Data Import</h1>
-    <p class="text-muted">Import bulk data from CSV files</p>
+</div>
+
+<div class="card" style="margin-bottom:1.25rem; border-left:4px solid var(--primary);">
+    <div class="card-body" style="padding:0.9rem 1.1rem;">
+        <p style="margin:0; font-size:0.9rem; color:var(--text-light);">
+            <strong>How import works:</strong> Each row creates a <em>new</em> record.
+            Import does not update or merge existing records.
+        </p>
+        <ul style="margin:0.6rem 0 0 1.2rem; font-size:0.85rem; color:var(--text-light);">
+            <li>All prices and monetary values must be in <strong>VND</strong> — even if you are currently viewing in USD.</li>
+            <li>For Products and Customers, include the code column to preserve existing codes. Leave it blank to auto-generate.</li>
+            <li>For Categories, duplicate names are silently skipped (safe to re-import).</li>
+            <li>For Inventory, the product must already exist. Quantity must be greater than 0.</li>
+            <li>Orders, Returns, and Refunds cannot be imported — they involve FIFO stock, state machines, and accounting rules that cannot be safely replayed from CSV.</li>
+        </ul>
+    </div>
+</div>
+
+<!-- Import Categories -->
+<div class="card" style="margin-bottom:1rem;">
+    <div class="card-header">
+        <h2>Import Categories</h2>
+    </div>
+    <div class="card-body">
+        <p class="text-muted">Create categories in bulk. Rows whose name already exists are skipped — safe to re-import.</p>
+
+        <div class="form-section">
+            <h3>Expected CSV Format</h3>
+            <div style="background:#f5f5f5; padding:10px; border-radius:4px; margin:10px 0; overflow-x:auto;">
+                <code style="font-size:12px;">
+name,description<br>
+Electronics,Electronic devices and accessories<br>
+Clothing,Fashion and apparel<br>
+Furniture,Home and office furniture
+                </code>
+            </div>
+            <p class="text-muted" style="font-size:0.85rem;">Column <code>description</code> is optional.</p>
+        </div>
+
+        <form method="POST" action="{{ url_for('imports.import_categories') }}" enctype="multipart/form-data" class="form-section">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label for="categories_file">Select CSV File:</label>
+                <input type="file" id="categories_file" name="file" accept=".csv" class="form-input" required>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Import Categories</button>
+            </div>
+        </form>
+    </div>
 </div>
 
 <!-- Import Products -->
-<div class="card">
+<div class="card" style="margin-bottom:1rem;">
     <div class="card-header">
         <h2>Import Products</h2>
     </div>
     <div class="card-body">
-        <p class="text-muted">Import products with their prices and stock levels.</p>
+        <p class="text-muted">Import products. Categories that don't exist yet are created automatically. All prices in VND.</p>
 
         <div class="form-section">
             <h3>Expected CSV Format</h3>
-            <div style="background-color: #f5f5f5; padding: 10px; border-radius: 4px; margin: 10px 0; overflow-x: auto;">
-                <code style="font-size: 12px;">
-name,category,sale_price,cost_price,barcode,min_stock_level<br>
-Laptop,Electronics,12000000,8000000,SKU001,5<br>
-Mouse,Electronics,150000,100000,SKU002,20<br>
-Desk,Furniture,2000000,1200000,SKU003,2
+            <div style="background:#f5f5f5; padding:10px; border-radius:4px; margin:10px 0; overflow-x:auto;">
+                <code style="font-size:12px;">
+product_code,name,category,sale_price,cost_price,barcode,min_stock_level<br>
+EL0001,Laptop,Electronics,12000000,8000000,SKU001,5<br>
+EL0002,Mouse,Electronics,150000,100000,SKU002,20<br>
+,Desk,Furniture,2000000,1200000,SKU003,2
                 </code>
             </div>
+            <p class="text-muted" style="font-size:0.85rem;">
+                <code>product_code</code> is optional — leave blank to auto-generate from category (e.g. <code>EL0001</code>).<br>
+                <code>barcode</code> and <code>min_stock_level</code> are optional. <code>category</code> is optional.
+            </p>
         </div>
 
         <form method="POST" action="{{ url_for('imports.import_products') }}" enctype="multipart/form-data" class="form-section">
@@ -42,23 +95,27 @@ Desk,Furniture,2000000,1200000,SKU003,2
 </div>
 
 <!-- Import Customers -->
-<div class="card">
+<div class="card" style="margin-bottom:1rem;">
     <div class="card-header">
         <h2>Import Customers</h2>
     </div>
     <div class="card-body">
-        <p class="text-muted">Import customer information including contact details.</p>
+        <p class="text-muted">Import customer records. Include <code>customer_code</code> to preserve existing codes, or leave blank to auto-generate (KH######).</p>
 
         <div class="form-section">
             <h3>Expected CSV Format</h3>
-            <div style="background-color: #f5f5f5; padding: 10px; border-radius: 4px; margin: 10px 0; overflow-x: auto;">
-                <code style="font-size: 12px;">
-name,email,phone,address,region<br>
-John Doe,john@example.com,0901234567,123 Main St,North<br>
-Jane Smith,jane@example.com,0987654321,456 Oak Ave,South<br>
-Bob Johnson,bob@example.com,0912345678,789 Pine Rd,Central
+            <div style="background:#f5f5f5; padding:10px; border-radius:4px; margin:10px 0; overflow-x:auto;">
+                <code style="font-size:12px;">
+customer_code,name,email,phone,address,region<br>
+KH000001,Nguyen Van A,nguyenvana@email.com,0901234567,123 Le Loi HCM,South<br>
+,Jane Smith,jane@email.com,0987654321,456 Oak Ave,North<br>
+KH000003,Bob Johnson,bob@email.com,0912345678,789 Pine Rd,Central
                 </code>
             </div>
+            <p class="text-muted" style="font-size:0.85rem;">
+                <code>customer_code</code> is optional. If provided and already in use, that row will fail (no update).<br>
+                <code>email</code>, <code>phone</code>, <code>address</code>, <code>region</code> are all optional.
+            </p>
         </div>
 
         <form method="POST" action="{{ url_for('imports.import_customers') }}" enctype="multipart/form-data" class="form-section">
@@ -75,33 +132,31 @@ Bob Johnson,bob@example.com,0912345678,789 Pine Rd,Central
 </div>
 
 <!-- Import Inventory -->
-<div class="card">
+<div class="card" style="margin-bottom:1rem;">
     <div class="card-header">
         <h2>Import Inventory</h2>
     </div>
     <div class="card-body">
-        <p class="text-muted">Import inventory stock levels for existing products. Use either product_code or product_name.</p>
+        <p class="text-muted">
+            Add intake lots to existing products. The product must already exist.
+            Quantity must be greater than 0. All costs in VND (or USD if <code>currency</code> is set to <code>USD</code>).
+        </p>
 
         <div class="form-section">
-            <h3>Expected CSV Format (Option 1: Using Product Code)</h3>
-            <div style="background-color: #f5f5f5; padding: 10px; border-radius: 4px; margin: 10px 0; overflow-x: auto;">
-                <code style="font-size: 12px;">
-product_code,quantity,cost_price,intake_date,notes<br>
-SP000001,100,8000000,2026-04-01,Initial stock<br>
-SP000002,50,100000,2026-04-02,Restock
+            <h3>Expected CSV Format</h3>
+            <div style="background:#f5f5f5; padding:10px; border-radius:4px; margin:10px 0; overflow-x:auto;">
+                <code style="font-size:12px;">
+product_code,quantity,cost_price,shipping_cost,currency,intake_date,notes<br>
+EL0001,100,8000000,500000,VND,2026-04-01,Initial stock<br>
+EL0002,50,15,2,USD,2026-04-02,Imported from US supplier<br>
+EL0003,20,100000,,,2026-04-03,No shipping cost
                 </code>
             </div>
-        </div>
-
-        <div class="form-section">
-            <h3>Expected CSV Format (Option 2: Using Product Name)</h3>
-            <div style="background-color: #f5f5f5; padding: 10px; border-radius: 4px; margin: 10px 0; overflow-x: auto;">
-                <code style="font-size: 12px;">
-product_name,quantity,cost_price,intake_date,notes<br>
-Laptop,100,8000000,2026-04-01,Initial stock<br>
-Mouse,50,100000,2026-04-02,Restock
-                </code>
-            </div>
+            <p class="text-muted" style="font-size:0.85rem;">
+                Use <code>product_code</code> <em>or</em> <code>product_name</code> to identify the product.<br>
+                <code>shipping_cost</code>, <code>currency</code> (VND or USD), and <code>notes</code> are optional.<br>
+                <code>intake_date</code> format: YYYY-MM-DD. Leave blank to use today's date.
+            </p>
         </div>
 
         <form method="POST" action="{{ url_for('imports.import_inventory') }}" enctype="multipart/form-data" class="form-section">
@@ -118,6 +173,7 @@ Mouse,50,100000,2026-04-02,Restock
 </div>
 
 <div class="form-actions">
+    <a href="{{ url_for('exports.exports_index') }}" class="btn btn-outline">Go to Export</a>
     <a href="{{ url_for('dashboard.dashboard') }}" class="btn btn-outline">Back to Dashboard</a>
 </div>
 {% endblock %}

@@ -91,6 +91,14 @@ def _fmt_date(val):
     return str(val)[:10]
 
 
+def _cast_int(val):
+    """Round a float monetary value to a plain integer for CSV/XLSX output."""
+    try:
+        return int(round(float(val)))
+    except (TypeError, ValueError):
+        return val
+
+
 # ── Data fetchers ─────────────────────────────────────────────────────────────
 
 def _fetch_products(db):
@@ -109,7 +117,13 @@ def _fetch_products(db):
         GROUP BY p.id
         ORDER BY p.product_code
     ''').fetchall()
-    return headers, [tuple(r) for r in rows]
+    # Monetary cols: Sale Price (idx 3), Cost Price (idx 4)
+    def _clean_product_row(r):
+        r = list(r)
+        r[3] = _cast_int(r[3])
+        r[4] = _cast_int(r[4])
+        return tuple(r)
+    return headers, [_clean_product_row(r) for r in rows]
 
 
 def _fetch_customers(db):
@@ -133,7 +147,13 @@ def _fetch_customers(db):
         GROUP BY c.id
         ORDER BY c.customer_code
     ''').fetchall()
-    return headers, [tuple(r) for r in rows]
+    # Monetary cols: Total Spent (idx 7), Outstanding Debt (idx 8)
+    def _clean_customer_row(r):
+        r = list(r)
+        r[7] = _cast_int(r[7])
+        r[8] = _cast_int(r[8])
+        return tuple(r)
+    return headers, [_clean_customer_row(r) for r in rows]
 
 
 def _fetch_orders(db):
@@ -154,7 +174,13 @@ def _fetch_orders(db):
         JOIN customers c ON o.customer_id = c.id
         ORDER BY o.order_date DESC, o.id DESC
     ''').fetchall()
-    return headers, [tuple(r) for r in rows]
+    # Monetary cols: Subtotal (5), Discount (6), Shipping (7), Total (9), Paid (10)
+    def _clean_order_row(r):
+        r = list(r)
+        for i in (5, 6, 7, 9, 10):
+            r[i] = _cast_int(r[i])
+        return tuple(r)
+    return headers, [_clean_order_row(r) for r in rows]
 
 
 def _fetch_inventory(db):
@@ -172,21 +198,91 @@ def _fetch_inventory(db):
         JOIN products p ON i.product_id = p.id
         ORDER BY p.product_code, i.intake_date ASC, i.id ASC
     ''').fetchall()
+    # Monetary cols: Cost Price (idx 4), Shipping to Warehouse (idx 5)
+    def _clean_inventory_row(r):
+        r = list(r)
+        r[4] = _cast_int(r[4])
+        r[5] = _cast_int(r[5])
+        return tuple(r)
+    return headers, [_clean_inventory_row(r) for r in rows]
+
+
+def _fetch_categories(db):
+    headers = ['Name', 'Description']
+    rows = db.execute('''
+        SELECT name, COALESCE(description, '') FROM categories ORDER BY name
+    ''').fetchall()
     return headers, [tuple(r) for r in rows]
 
 
+def _fetch_returns(db):
+    headers = ['Return Code', 'Date', 'Order Code', 'Customer', 'Reason',
+               'Items Returned', 'Items Restocked', 'Linked Refund Code']
+    rows = db.execute('''
+        SELECT r.return_code,
+               r.return_date,
+               o.order_code,
+               c.name AS customer_name,
+               COALESCE(r.return_reason, ''),
+               COUNT(ri.id) AS items_returned,
+               SUM(CASE WHEN ri.restock_inventory_lot_id IS NOT NULL THEN 1 ELSE 0 END) AS items_restocked,
+               COALESCE(GROUP_CONCAT(DISTINCT rf.refund_code), '') AS linked_refunds
+        FROM returns r
+        JOIN orders o ON r.original_order_id = o.id
+        JOIN customers c ON o.customer_id = c.id
+        LEFT JOIN return_items ri ON ri.return_id = r.id
+        LEFT JOIN refunds rf ON rf.return_id = r.id
+        GROUP BY r.id
+        ORDER BY r.return_date DESC, r.id DESC
+    ''').fetchall()
+    return headers, [tuple(r) for r in rows]
+
+
+def _fetch_refunds(db):
+    headers = ['Refund Code', 'Date', 'Order Code', 'Customer',
+               'Amount (VND)', 'Method', 'Reason', 'Notes', 'Linked Return Code']
+    rows = db.execute('''
+        SELECT rf.refund_code,
+               rf.refund_date,
+               o.order_code,
+               c.name AS customer_name,
+               COALESCE(rf.amount, 0),
+               COALESCE(rf.refund_method, ''),
+               COALESCE(rf.reason, ''),
+               COALESCE(rf.notes, ''),
+               COALESCE(r.return_code, '')
+        FROM refunds rf
+        JOIN orders o ON rf.order_id = o.id
+        JOIN customers c ON o.customer_id = c.id
+        LEFT JOIN returns r ON rf.return_id = r.id
+        ORDER BY rf.refund_date DESC, rf.id DESC
+    ''').fetchall()
+    # Monetary col: Amount (idx 4)
+    def _clean_refund_row(row):
+        r = list(row)
+        r[4] = _cast_int(r[4])
+        return tuple(r)
+    return headers, [_clean_refund_row(r) for r in rows]
+
+
 _FETCHERS = {
-    'products':  _fetch_products,
-    'customers': _fetch_customers,
-    'orders':    _fetch_orders,
-    'inventory': _fetch_inventory,
+    'products':   _fetch_products,
+    'customers':  _fetch_customers,
+    'orders':     _fetch_orders,
+    'inventory':  _fetch_inventory,
+    'categories': _fetch_categories,
+    'returns':    _fetch_returns,
+    'refunds':    _fetch_refunds,
 }
 
 _DISPLAY_NAMES = {
-    'products':  'Products',
-    'customers': 'Customers',
-    'orders':    'Orders',
-    'inventory': 'Inventory',
+    'products':   'Products',
+    'customers':  'Customers',
+    'orders':     'Orders',
+    'inventory':  'Inventory',
+    'categories': 'Categories',
+    'returns':    'Returns',
+    'refunds':    'Refunds',
 }
 
 
@@ -239,7 +335,7 @@ def export_all_xlsx():
     db = get_db()
     try:
         sheets = []
-        for key in ('products', 'customers', 'orders', 'inventory'):
+        for key in ('products', 'customers', 'orders', 'inventory', 'categories', 'returns', 'refunds'):
             headers, rows = _FETCHERS[key](db)
             sheets.append((_DISPLAY_NAMES[key], headers, rows))
         ts = datetime.now().strftime('%Y%m%d_%H%M%S')
