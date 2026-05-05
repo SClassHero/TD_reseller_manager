@@ -1,0 +1,46 @@
+{% if total and total > 0 %}
+    {% set start_item = ((page - 1) * per_page) + 1 %}
+    {% set raw_end_item = page * per_page %}
+    {% set end_item = total if raw_end_item > total else raw_end_item %}
+    {% set base_url = url_for(endpoint) %}
+    {% set encoded_params = pagination_params|urlencode if pagination_params else '' %}
+    {% set query_prefix = '?' ~ encoded_params ~ '&' if encoded_params else '?' %}
+
+    <div class="list-footer">
+        <div class="list-count">
+            Showing {{ start_item|number }}-{{ end_item|number }} of {{ total|number }}
+        </div>
+
+        {% if total_pages > 1 %}
+            <nav class="pagination" aria-label="Pagination">
+                {% if page > 1 %}
+                    <a href="{{ base_url }}{{ query_prefix }}page={{ page - 1 }}"
+                       class="btn btn-outline btn-sm">
+                        Previous
+                    </a>
+                {% endif %}
+
+                <div class="pagination-pages">
+                    {% for page_no in page_numbers %}
+                        {% if page_no %}
+                            <a href="{{ base_url }}{{ query_prefix }}page={{ page_no }}"
+                               class="pagination-page {% if page_no == page %}active{% endif %}"
+                               {% if page_no == page %}aria-current="page"{% endif %}>
+                                {{ page_no }}
+                            </a>
+                        {% else %}
+                            <span class="pagination-ellipsis">...</span>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+
+                {% if page < total_pages %}
+                    <a href="{{ base_url }}{{ query_prefix }}page={{ page + 1 }}"
+                       class="btn btn-outline btn-sm">
+                        Next
+                    </a>
+                {% endif %}
+            </nav>
+        {% endif %}
+    </div>
+{% endif %}

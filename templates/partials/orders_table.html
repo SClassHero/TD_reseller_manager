@@ -1,4 +1,4 @@
-<table class="table">
+<table class="table mobile-card-table">
     <thead>
         <tr>
             <th>Code</th>
@@ -6,22 +6,28 @@
             <th>Customer</th>
             <th>Total</th>
             <th>Status</th>
+            <th>Payment</th>
             <th>Action</th>
         </tr>
     </thead>
     <tbody>
         {% for order in orders %}
             <tr>
-                <td><strong>{{ order['order_code'] }}</strong></td>
-                <td>{{ order['order_date'] }}</td>
-                <td>{{ order['customer_name'] }}</td>
-                <td>{{ order['total_amount']|vnd }}</td>
-                <td>
+                <td data-label="Code"><strong>{{ order['order_code'] }}</strong></td>
+                <td data-label="Date">{{ order['order_date'] }}</td>
+                <td data-label="Customer">{{ order['customer_name'] }}</td>
+                <td data-label="Total">{{ order['total_amount']|vnd }}</td>
+                <td data-label="Status">
                     <span class="badge badge-{{ order['order_status'] }}">
                         {{ order['order_status']|title }}
                     </span>
                 </td>
-                <td>
+                <td data-label="Payment">
+                    <span class="badge badge-{{ order['payment_status'] }}">
+                        {{ order['payment_status'].replace('_', ' ')|title }}
+                    </span>
+                </td>
+                <td data-label="Action">
                     <a href="{{ url_for('orders.order_detail', id=order['id']) }}" class="btn btn-sm btn-outline">
                         View
                     </a>

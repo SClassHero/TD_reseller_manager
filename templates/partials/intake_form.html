@@ -6,80 +6,91 @@
         </div>
 
         <form method="POST" action="{{ url_for('inventory.create_intake') }}">
-            <div class="form-group">
-                <label for="product_id">Product *</label>
-                <select id="product_id" name="product_id" class="form-input" required
-                        onchange="prefillCost(this)">
-                    <option value="">-- Select Product --</option>
-                    {% for product in products %}
-                        <option value="{{ product['id'] }}"
-                                data-cost="{{ product['cost_price'] or '' }}">
-                            [{{ product['product_code'] }}] {{ product['name'] }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-            <div class="form-group">
-                <label for="quantity">
-                    Quantity *
-                    <small class="text-muted" style="font-weight:normal;">
-                        (use negative for pre-orders / backorders not yet in warehouse)
-                    </small>
-                </label>
-                <input type="number"
-                       id="quantity"
-                       name="quantity"
-                       class="form-input"
-                       placeholder="e.g. 10 or -5 for backorder"
-                       required>
-            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="product_id">Product *</label>
+                    <select id="product_id" name="product_id" class="form-input" required
+                            onchange="prefillCost(this)">
+                        <option value="">-- Select Product --</option>
+                        {% for product in products %}
+                            <option value="{{ product['id'] }}"
+                                    data-cost="{{ product['cost_price'] or '' }}">
+                                [{{ product['product_code'] }}] {{ product['name'] }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-            <div class="form-group">
-                <label for="cost_price">Cost Price per Unit</label>
-                <input type="number"
-                       id="cost_price"
-                       name="cost_price"
-                       class="form-input"
-                       min="0"
-                       step="0.01"
-                       placeholder="0">
-            </div>
+                <div class="form-group">
+                    <label for="quantity">
+                        Quantity *
+                        <small class="text-muted" style="font-weight:normal;">
+                            (use negative for pre-orders / backorders not yet in warehouse)
+                        </small>
+                    </label>
+                    <input type="number"
+                           id="quantity"
+                           name="quantity"
+                           class="form-input"
+                           placeholder="e.g. 10 or -5 for backorder"
+                           required>
+                </div>
 
-            <div class="form-group">
-                <label for="shipping_cost">
-                    Shipping Cost to Warehouse
-                    <small class="text-muted" style="font-weight:normal;">(total, not per unit)</small>
-                </label>
-                <input type="number"
-                       id="shipping_cost"
-                       name="shipping_cost"
-                       class="form-input"
-                       min="0"
-                       step="0.01"
-                       placeholder="0"
-                       value="0">
-            </div>
+                <div class="modal-field-grid">
+                    <div class="form-group">
+                        <label for="cost_price">Cost Price per Unit</label>
+                        <input type="number"
+                               id="cost_price"
+                               name="cost_price"
+                               class="form-input"
+                               min="0"
+                               step="0.01"
+                               placeholder="0">
+                    </div>
 
-            <div class="form-group">
-                <label for="currency">Currency</label>
-                <select id="currency" name="currency" class="form-input">
-                    <option value="VND" {% if display_currency == 'VND' %}selected{% endif %}>VND</option>
-                    <option value="USD" {% if display_currency == 'USD' %}selected{% endif %}>USD</option>
-                </select>
-            </div>
+                    <div class="form-group">
+                        <label for="shipping_cost">
+                            Shipping Cost to Warehouse
+                            <small class="text-muted" style="font-weight:normal;">(total, not per unit)</small>
+                        </label>
+                        <input type="number"
+                               id="shipping_cost"
+                               name="shipping_cost"
+                               class="form-input"
+                               min="0"
+                               step="0.01"
+                               placeholder="0"
+                               value="0">
+                    </div>
+                </div>
 
-            <div class="form-group">
-                <label for="intake_date">Intake Date</label>
-                <input type="date"
-                       id="intake_date"
-                       name="intake_date"
-                       class="form-input">
-            </div>
+                <div class="modal-field-grid">
+                    <div class="form-group">
+                        <label for="currency">Currency</label>
+                        <select id="currency" name="currency" class="form-input">
+                            <option value="VND" {% if display_currency == 'VND' %}selected{% endif %}>VND</option>
+                            <option value="USD" {% if display_currency == 'USD' %}selected{% endif %}>USD</option>
+                        </select>
+                    </div>
 
-            <div class="form-group">
-                <label for="notes">Notes</label>
-                <textarea id="notes" name="notes" class="form-input" rows="2" placeholder="Optional notes"></textarea>
+                    <div class="form-group">
+                        <label for="intake_date">Intake Date</label>
+                        <input type="date"
+                               id="intake_date"
+                               name="intake_date"
+                               class="form-input">
+                        <small id="intake-date-warn" style="color:#f59e0b; display:none; margin-top:4px;">
+                            Date is more than 30 days in the past. This lot will be inserted earlier in the FIFO queue.
+                        </small>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="notes">Notes</label>
+                    <textarea id="notes" name="notes" class="form-input" rows="2" placeholder="Optional notes"></textarea>
+                </div>
             </div>
 
             <div class="modal-footer">
@@ -107,6 +118,21 @@ document.addEventListener('DOMContentLoaded', function() {
         costField.addEventListener('input', function() {
             this.dataset.prefilled = 'false';
         });
+    }
+
+    // Warn when intake_date is more than 30 days in the past (FIFO ordering concern)
+    const dateField = document.getElementById('intake_date');
+    const dateWarn  = document.getElementById('intake-date-warn');
+    if (dateField && dateWarn) {
+        function checkIntakeDate() {
+            if (!dateField.value) { dateWarn.style.display = 'none'; return; }
+            const selected  = new Date(dateField.value);
+            const threshold = new Date();
+            threshold.setDate(threshold.getDate() - 30);
+            dateWarn.style.display = selected < threshold ? 'block' : 'none';
+        }
+        dateField.addEventListener('change', checkIntakeDate);
+        checkIntakeDate();
     }
 });
 </script>

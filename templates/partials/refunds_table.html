@@ -1,4 +1,4 @@
-<table class="table">
+<table class="table mobile-card-table">
     <thead>
         <tr>
             <th>Code</th>
@@ -13,23 +13,23 @@
     <tbody>
         {% for refund in refunds %}
             <tr>
-                <td><strong>{{ refund['refund_code'] }}</strong></td>
-                <td>{{ refund['refund_date'][:10] if refund['refund_date'] else '—' }}</td>
-                <td>
+                <td data-label="Code"><strong>{{ refund['refund_code'] }}</strong></td>
+                <td data-label="Date">{{ refund['refund_date'][:10] if refund['refund_date'] else '-' }}</td>
+                <td data-label="Order">
                     <a href="{{ url_for('orders.order_detail', id=refund['order_id']) }}">
                         {{ refund['order_code'] }}
                     </a>
                 </td>
-                <td>{{ refund['customer_name'] }}</td>
-                <td style="font-weight:bold; color:var(--danger);">{{ refund['amount']|vnd }}</td>
-                <td>
+                <td data-label="Customer">{{ refund['customer_name'] }}</td>
+                <td data-label="Amount" style="font-weight:bold; color:var(--danger);">{{ refund['amount']|vnd }}</td>
+                <td data-label="Method">
                     {% if refund['refund_method'] %}
                         {{ refund['refund_method'].replace('_', ' ').title() }}
                     {% else %}
-                        <span class="text-muted">—</span>
+                        <span class="text-muted">-</span>
                     {% endif %}
                 </td>
-                <td>
+                <td data-label="Actions">
                     <div class="action-buttons">
                         <a href="{{ url_for('refunds.refund_detail', id=refund['id']) }}"
                            class="btn btn-sm btn-outline">View</a>
@@ -38,6 +38,7 @@
                         <form method="POST"
                               action="{{ url_for('refunds.delete_refund', id=refund['id']) }}"
                               style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-sm btn-danger"
                                     data-code="{{ refund['refund_code'] }}"
                                     onclick="return confirm('Delete refund ' + this.dataset.code + '? This cannot be undone.')">

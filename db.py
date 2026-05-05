@@ -1,8 +1,29 @@
+"""
+db.py — Database schema, migration helpers, and code generation.
+
+Rules for future schema changes (critical — read before editing):
+  1. New columns: always use _migrate_add_column(), never raw ALTER TABLE at module level.
+  2. New tables: use CREATE TABLE IF NOT EXISTS.
+  3. Structural changes: increment SCHEMA_VERSION and add an entry to SCHEMA_CHANGELOG.md.
+  4. Never drop or rename columns without a data migration script.
+
+SCHEMA_VERSION is embedded in backup filenames so old backups can be restored and
+then upgraded automatically by init_db() applying all _migrate_add_column() calls.
+"""
 import sqlite3
+import logging
 import os
 from pathlib import Path
+from werkzeug.security import generate_password_hash
 
-DATABASE = 'inventory.db'
+_log = logging.getLogger(__name__)
+
+DATABASE = os.environ.get('INVENTORY_DB', 'inventory.db')
+
+# Increment whenever the schema changes structurally (new table, new column, type change).
+# Must match the version recorded in SCHEMA_CHANGELOG.md.
+# Backup filenames and backup_info.json embed this value for cross-version restore.
+SCHEMA_VERSION = 5
 
 PREFIX_MAP = {
     'KH': ('customers', 'customer_code'),
@@ -10,6 +31,7 @@ PREFIX_MAP = {
     'SP': ('products', 'product_code'),
     'TR': ('returns', 'return_code'),
     'RF': ('refunds', 'refund_code'),
+    'AD': ('inventory_adjustments', 'adjustment_code'),
 }
 
 MAX_PRODUCT_IMAGES = 3
@@ -48,6 +70,19 @@ def init_db():
             )
         ''')
 
+        # Users table. Admin password is also mirrored in settings.password_hash
+        # for recovery/backup compatibility with earlier app versions.
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                role TEXT NOT NULL CHECK(role IN ('admin', 'limited')),
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
         # Categories table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS categories (
@@ -65,8 +100,8 @@ def init_db():
                 product_code TEXT UNIQUE NOT NULL,
                 name TEXT NOT NULL,
                 category_id INTEGER,
-                sale_price REAL,
-                cost_price REAL,
+                sale_price REAL,  -- reference only: pre-fills order form; NOT used in revenue calculations
+                cost_price REAL,  -- reference only: pre-fills intake form; NOT used in FIFO COGS
                 barcode TEXT,
                 min_stock_level INTEGER DEFAULT 0,
                 image_path TEXT,
@@ -87,8 +122,8 @@ def init_db():
                 phone TEXT,
                 address TEXT,
                 region TEXT,
-                total_spent REAL DEFAULT 0,
-                outstanding_debt REAL DEFAULT 0,
+                total_spent REAL DEFAULT 0,      -- updated when order moves draft ↔ active sale
+                outstanding_debt REAL DEFAULT 0, -- STALE CACHE: never use for display; always compute live
                 is_active INTEGER DEFAULT 1,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -99,11 +134,11 @@ def init_db():
             CREATE TABLE IF NOT EXISTS inventory (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 product_id INTEGER NOT NULL,
-                quantity INTEGER NOT NULL,
-                remaining_quantity INTEGER NOT NULL,
-                cost_price REAL,
-                currency TEXT DEFAULT 'VND',
-                exchange_rate REAL DEFAULT 1.0,
+                quantity INTEGER NOT NULL,           -- original intake amount; negative = backorder/pre-order
+                remaining_quantity INTEGER NOT NULL, -- live: decremented by FIFO, restored on order reopen
+                cost_price REAL,                     -- fixed at intake; used per-unit in FIFO COGS
+                currency TEXT DEFAULT 'VND',         -- source currency label (VND or USD)
+                exchange_rate REAL DEFAULT 1.0,      -- rate used to convert USD cost to VND at intake time
                 intake_date TIMESTAMP,
                 notes TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -118,12 +153,16 @@ def init_db():
                 order_code TEXT UNIQUE NOT NULL,
                 customer_id INTEGER NOT NULL,
                 order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                -- draft: no stock/accounting effect; editable/deletable
+                -- processing/completed: active sale — FIFO stock reserved, counts in revenue/COGS/debt
+                -- cancelled: terminal; cannot be reopened
                 order_status TEXT CHECK (order_status IN ('draft', 'processing', 'completed', 'cancelled')) DEFAULT 'draft',
                 payment_status TEXT CHECK (payment_status IN ('not_paid', 'partially_paid', 'fully_paid')) DEFAULT 'not_paid',
                 subtotal REAL DEFAULT 0,
-                discount_amount REAL DEFAULT 0,
+                discount_amount REAL DEFAULT 0,   -- must not exceed subtotal (enforced in routes/orders.py)
                 shipping_fee REAL DEFAULT 0,
                 shipping_paid_by TEXT DEFAULT 'customer' CHECK(shipping_paid_by IN ('customer','seller')),
+                -- formula: subtotal - discount + shipping_fee (only when shipping_paid_by = 'customer')
                 total_amount REAL DEFAULT 0,
                 notes TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -156,7 +195,7 @@ def init_db():
                 inventory_lot_id INTEGER NOT NULL,
                 product_id INTEGER NOT NULL,
                 quantity_allocated INTEGER NOT NULL,
-                cost_price_at_sale REAL DEFAULT 0,
+                cost_price_at_sale REAL DEFAULT 0, -- AUTHORITATIVE COGS source: actual cost of the lot consumed
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
                 FOREIGN KEY (inventory_lot_id) REFERENCES inventory(id),
@@ -175,24 +214,6 @@ def init_db():
                 FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
             )
         ''')
-
-        # ── Migrations for existing databases ──────────────────────────
-        def _migrate_add_column(table, column, definition):
-            """Safely add a column if it doesn't exist."""
-            try:
-                cursor.execute(f'SELECT {column} FROM {table} LIMIT 1')
-            except Exception:
-                try:
-                    cursor.execute(f'ALTER TABLE {table} ADD COLUMN {column} {definition}')
-                except Exception:
-                    pass
-
-        _migrate_add_column('order_allocations', 'cost_price_at_sale', 'REAL DEFAULT 0')
-        _migrate_add_column('orders', 'shipping_paid_by',
-                            "TEXT DEFAULT 'customer' CHECK(shipping_paid_by IN ('customer','seller'))")
-        _migrate_add_column('refunds', 'return_id', 'INTEGER REFERENCES returns(id)')
-        _migrate_add_column('inventory', 'shipping_cost', 'REAL DEFAULT 0')
-        _migrate_add_column('products', 'product_code_custom', 'INTEGER DEFAULT 0')
 
         # Payments table
         cursor.execute('''
@@ -248,11 +269,93 @@ def init_db():
                 product_id INTEGER NOT NULL,
                 quantity INTEGER NOT NULL,
                 refund_amount REAL NOT NULL,
+                restock_action TEXT DEFAULT 'none',
+                restock_quantity INTEGER DEFAULT 0,
+                restock_unit_cost REAL DEFAULT 0,
+                restock_shipping_cost REAL DEFAULT 0,
+                restock_inventory_lot_id INTEGER,
                 FOREIGN KEY (return_id) REFERENCES returns(id) ON DELETE CASCADE,
                 FOREIGN KEY (order_item_id) REFERENCES order_items(id),
-                FOREIGN KEY (product_id) REFERENCES products(id)
+                FOREIGN KEY (product_id) REFERENCES products(id),
+                FOREIGN KEY (restock_inventory_lot_id) REFERENCES inventory(id)
             )
         ''')
+
+        # Inventory adjustments / write-offs
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS inventory_adjustments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                adjustment_code TEXT UNIQUE NOT NULL,
+                inventory_lot_id INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                return_item_id INTEGER,
+                adjustment_type TEXT DEFAULT 'write_off',
+                quantity_delta INTEGER NOT NULL,
+                unit_cost REAL NOT NULL DEFAULT 0,
+                total_cost REAL NOT NULL DEFAULT 0,
+                reason TEXT,
+                notes TEXT,
+                adjustment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (inventory_lot_id) REFERENCES inventory(id),
+                FOREIGN KEY (product_id) REFERENCES products(id),
+                FOREIGN KEY (return_item_id) REFERENCES return_items(id)
+            )
+        ''')
+
+        # ── Migrations for existing databases ──────────────────────────
+        _ALLOWED_MIGRATE_TABLES = frozenset({
+            'order_allocations', 'orders', 'refunds', 'inventory', 'products',
+            'customers', 'categories', 'order_items', 'payments', 'returns',
+            'return_items', 'inventory_adjustments', 'product_images', 'settings', 'users',
+        })
+
+        def _migrate_add_column(table, column, definition):
+            """Safely add a column to an existing table if it doesn't already exist."""
+            if table not in _ALLOWED_MIGRATE_TABLES:
+                raise ValueError(f'Migration refused: unknown table {table!r}')
+            try:
+                cursor.execute(f'SELECT {column} FROM {table} LIMIT 1')
+            except sqlite3.OperationalError:
+                try:
+                    cursor.execute(f'ALTER TABLE {table} ADD COLUMN {column} {definition}')
+                except sqlite3.OperationalError as exc:
+                    _log.warning('Migration skipped (%s.%s): %s', table, column, exc)
+
+        _migrate_add_column('order_allocations', 'cost_price_at_sale', 'REAL DEFAULT 0')
+        _migrate_add_column('orders', 'shipping_paid_by',
+                            "TEXT DEFAULT 'customer' CHECK(shipping_paid_by IN ('customer','seller'))")
+        _migrate_add_column('refunds', 'return_id', 'INTEGER REFERENCES returns(id)')
+        _migrate_add_column('inventory', 'shipping_cost', 'REAL DEFAULT 0')  # inbound cost to warehouse; amortized per-unit into FIFO cost
+        _migrate_add_column('products', 'product_code_custom', 'INTEGER DEFAULT 0')
+        _migrate_add_column('settings', 'recovery_code_hash', 'TEXT')
+        _migrate_add_column('settings', 'auto_backup_enabled', 'INTEGER DEFAULT 1')
+        _migrate_add_column('settings', 'auto_backup_frequency_hours', 'INTEGER DEFAULT 168')
+        _migrate_add_column('settings', 'auto_backup_keep', 'INTEGER DEFAULT 12')
+        _migrate_add_column('settings', 'last_auto_backup_at', 'TEXT')
+        _migrate_add_column('settings', 'schema_version', 'INTEGER DEFAULT 1')
+        _migrate_add_column('return_items', 'restock_action', "TEXT DEFAULT 'none'")
+        _migrate_add_column('return_items', 'restock_quantity', 'INTEGER DEFAULT 0')
+        _migrate_add_column('return_items', 'restock_unit_cost', 'REAL DEFAULT 0')
+        _migrate_add_column('return_items', 'restock_shipping_cost', 'REAL DEFAULT 0')
+        _migrate_add_column('return_items', 'restock_inventory_lot_id', 'INTEGER REFERENCES inventory(id)')
+        cursor.execute('''
+            UPDATE return_items
+            SET restock_quantity = quantity
+            WHERE restock_inventory_lot_id IS NOT NULL
+              AND COALESCE(restock_quantity, 0) = 0
+        ''')
+
+        # ── Indexes ──────────────────────────────────────────────────────
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_inventory_product_id ON inventory(product_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_order_alloc_order_id ON order_allocations(order_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_payments_order_id ON payments(order_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON orders(customer_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_orders_status_date ON orders(order_status, order_date)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_refunds_order_id ON refunds(order_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_inventory_adjustments_lot ON inventory_adjustments(inventory_lot_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_inventory_adjustments_product ON inventory_adjustments(product_id)')
 
         # Seed default settings if empty
         cursor.execute('SELECT COUNT(*) as count FROM settings')
@@ -260,7 +363,44 @@ def init_db():
             cursor.execute('''
                 INSERT INTO settings (app_name, password_hash, default_currency, vnd_usd_rate)
                 VALUES (?, ?, ?, ?)
-            ''', ('Inventory Management', 'admin123', 'VND', 24000.0))
+            ''', ('Inventory Management', generate_password_hash('admin123'), 'VND', 24000.0))
+
+        # Migrate any remaining plaintext passwords to hashed (one-time, safe to re-run)
+        cursor.execute('SELECT id, password_hash FROM settings LIMIT 1')
+        pw_row = cursor.fetchone()
+        if pw_row and pw_row['password_hash']:
+            stored = pw_row['password_hash']
+            if not stored.startswith(('pbkdf2:', 'scrypt:', 'argon2:')):
+                stored = generate_password_hash(stored)
+                cursor.execute('UPDATE settings SET password_hash = ? WHERE id = ?',
+                               (stored, pw_row['id']))
+
+        # Seed the admin user from settings.password_hash for upgraded databases.
+        cursor.execute('SELECT password_hash FROM settings LIMIT 1')
+        pw_row = cursor.fetchone()
+        admin_hash = pw_row['password_hash'] if pw_row else generate_password_hash('admin123')
+        cursor.execute("SELECT id FROM users WHERE role = 'admin' ORDER BY id LIMIT 1")
+        admin_user = cursor.fetchone()
+        if not admin_user:
+            try:
+                cursor.execute(
+                    'INSERT INTO users (username, password_hash, role, is_active) VALUES (?, ?, ?, ?)',
+                    ('admin', admin_hash, 'admin', 1)
+                )
+            except sqlite3.IntegrityError:
+                cursor.execute(
+                    "UPDATE users SET role = 'admin', password_hash = ?, is_active = 1 WHERE username = 'admin'",
+                    (admin_hash,)
+                )
+
+        cursor.execute('UPDATE settings SET schema_version = ? WHERE id = 1', (SCHEMA_VERSION,))
+
+        # Ensure backups directory exists.
+        backups_dir = os.environ.get(
+            'INVENTORY_BACKUPS_DIR',
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), 'backups')
+        )
+        os.makedirs(backups_dir, exist_ok=True)
 
         db.commit()
     finally:

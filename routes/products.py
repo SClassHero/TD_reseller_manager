@@ -1,10 +1,36 @@
+"""
+routes/products.py — Product CRUD with photo upload (up to 3 images per product).
+
+products.sale_price and products.cost_price are reference/default fields only.
+  sale_price  → pre-fills the order form unit price
+  cost_price  → pre-fills the inventory intake form
+Neither field is ever used in revenue, COGS, profit, or inventory value calculations.
+All financial figures come from order_items.unit_price and order_allocations.cost_price_at_sale.
+"""
 import os
+import sqlite3
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from db import get_db, generate_code, generate_product_code, MAX_PRODUCT_IMAGES
 from auth import login_required
+from list_utils import (
+    PER_PAGE_OPTIONS,
+    pagination_window,
+    parse_list_controls,
+    resolve_pagination,
+    sort_direction_sql,
+)
 
 products_bp = Blueprint('products', __name__, url_prefix='/products')
+
+PRODUCT_SORTS = {
+    'name': 'p.name COLLATE NOCASE',
+    'code': 'p.product_code COLLATE NOCASE',
+    'category': "COALESCE(c.name, '') COLLATE NOCASE",
+    'stock': 'stock',
+    'sale_price': 'COALESCE(p.sale_price, 0)',
+    'created': 'p.created_at',
+}
 
 
 def _save_product_images(product_id, files):
@@ -47,14 +73,32 @@ def products_list():
     try:
         cursor = db.cursor()
 
-        # Pagination
-        page = request.args.get('page', 1, type=int)
-        per_page = 50
-        offset = (page - 1) * per_page
-
-        # Search and category filter
+        controls = parse_list_controls(
+            request.args,
+            PRODUCT_SORTS,
+            default_sort='name',
+            default_direction='asc',
+            default_per_page=25,
+        )
         search = request.args.get('search', '').strip()
         category_filter = request.args.get('category_id', type=int)
+        sort = controls['sort']
+        direction = controls['direction']
+        per_page = controls['per_page']
+
+        # Get total count before selecting the visible page.
+        count_query = 'SELECT COUNT(*) as count FROM products WHERE is_active = 1'
+        count_params = []
+        if search:
+            count_query += ' AND (name LIKE ? OR product_code LIKE ? OR barcode LIKE ?)'
+            count_params.extend([f'%{search}%', f'%{search}%', f'%{search}%'])
+        if category_filter:
+            count_query += ' AND category_id = ?'
+            count_params.append(category_filter)
+
+        cursor.execute(count_query, count_params)
+        total = cursor.fetchone()['count']
+        page, total_pages, offset = resolve_pagination(controls['page'], per_page, total)
 
         # Build query
         query = '''
@@ -70,43 +114,42 @@ def products_list():
         params = []
 
         if search:
-            query += ' AND (p.name LIKE ? OR p.product_code LIKE ?)'
-            params.extend([f'%{search}%', f'%{search}%'])
+            query += ' AND (p.name LIKE ? OR p.product_code LIKE ? OR p.barcode LIKE ?)'
+            params.extend([f'%{search}%', f'%{search}%', f'%{search}%'])
 
         if category_filter:
             query += ' AND p.category_id = ?'
             params.append(category_filter)
 
-        query += ' GROUP BY p.id ORDER BY p.name LIMIT ? OFFSET ?'
+        order_expr = PRODUCT_SORTS[sort]
+        query += f' GROUP BY p.id ORDER BY {order_expr} {sort_direction_sql(direction)}, p.id ASC LIMIT ? OFFSET ?'
         params.extend([per_page, offset])
 
         cursor.execute(query, params)
         products = cursor.fetchall()
 
-        # Get total count
-        count_query = 'SELECT COUNT(*) as count FROM products WHERE is_active = 1'
-        count_params = []
-        if search:
-            count_query += ' AND (name LIKE ? OR product_code LIKE ?)'
-            count_params.extend([f'%{search}%', f'%{search}%'])
-        if category_filter:
-            count_query += ' AND category_id = ?'
-            count_params.append(category_filter)
-
-        cursor.execute(count_query, count_params)
-        total = cursor.fetchone()['count']
-        total_pages = (total + per_page - 1) // per_page
-
         # Get categories for filter
         cursor.execute('SELECT id, name FROM categories ORDER BY name')
         categories = cursor.fetchall()
+
+        pagination_params = {
+            'search': search,
+            'category_id': category_filter or '',
+            'sort': sort,
+            'direction': direction,
+            'per_page': per_page,
+        }
 
         # If HTMX request, return just the table partial
         if request.headers.get('HX-Request'):
             return render_template('partials/products_table.html', products=products, page=page, total_pages=total_pages)
 
         return render_template('products.html', products=products, page=page, total_pages=total_pages,
-                             search=search, category_filter=category_filter, categories=categories)
+                             total=total, per_page=per_page, per_page_options=PER_PAGE_OPTIONS,
+                             page_numbers=pagination_window(page, total_pages),
+                             pagination_params=pagination_params,
+                             search=search, category_filter=category_filter, categories=categories,
+                             sort=sort, direction=direction)
     finally:
         db.close()
 
@@ -200,10 +243,14 @@ def create_product():
                 db.commit()
 
             flash(f'Product "{name}" created with code {product_code}', 'success')
+        except sqlite3.IntegrityError:
+            db.rollback()
+            flash(f'Product code "{product_code}" is already in use. Please choose a different code.', 'error')
+            return redirect(url_for('products.products_list'))
         except Exception as e:
             db.rollback()
             flash(f'Error creating product: {str(e)}', 'error')
-            return redirect(url_for('products.new_product'))
+            return redirect(url_for('products.products_list'))
 
         return redirect(url_for('products.products_list'))
     finally:

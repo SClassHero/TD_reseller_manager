@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Export Data - Inventory Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Export Data</h1>
+</div>
+
+<p class="text-muted" style="margin-bottom:1.5rem;">
+    Download your data as CSV (opens in any spreadsheet) or Excel XLSX (requires openpyxl installed on the server).
+    All monetary values are in VND. Dates are in YYYY-MM-DD format.
+</p>
+
+<!-- Full export -->
+<div class="card" style="margin-bottom:1rem;">
+    <div class="card-header">
+        <h2>Full Export (All Tables)</h2>
+    </div>
+    <div class="card-body">
+        <p class="text-muted">Download everything in one Excel file with separate sheets for Products, Customers, Orders, and Inventory.</p>
+        <a href="{{ url_for('exports.export_all_xlsx') }}" class="btn btn-primary">Download All as XLSX</a>
+    </div>
+</div>
+
+<!-- Individual exports -->
+{% set export_types = [
+    ('products',  'Products',  'All active products with current stock levels.'),
+    ('customers', 'Customers', 'All customers with order count, total spent, and outstanding debt.'),
+    ('orders',    'Orders',    'All orders with status, amounts, and payment info.'),
+    ('inventory', 'Inventory', 'All inventory intake lots with costs and remaining quantities.'),
+] %}
+
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:1rem;">
+{% for key, label, description in export_types %}
+<div class="card">
+    <div class="card-header">
+        <h2>{{ label }}</h2>
+    </div>
+    <div class="card-body">
+        <p class="text-muted" style="font-size:0.9rem; margin-bottom:1rem;">{{ description }}</p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <a href="{{ url_for('exports.export_csv', export_type=key) }}" class="btn btn-outline btn-sm">
+                CSV
+            </a>
+            <a href="{{ url_for('exports.export_xlsx', export_type=key) }}" class="btn btn-outline btn-sm">
+                Excel (XLSX)
+            </a>
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>
+
+<div class="form-actions" style="margin-top:1.5rem;">
+    <a href="{{ url_for('dashboard.dashboard') }}" class="btn btn-outline">Back to Dashboard</a>
+</div>
+{% endblock %}

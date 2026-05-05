@@ -8,9 +8,11 @@
         <h1>{{ customer['name'] }}</h1>
         <p class="text-muted">Customer Code: {{ customer['customer_code'] }}</p>
     </div>
-    <button class="btn btn-primary" hx-get="{{ url_for('customers.edit_customer', id=customer['id']) }}" hx-target="#modal-container">
-        Edit
-    </button>
+    {% if is_admin %}
+        <button class="btn btn-primary" hx-get="{{ url_for('customers.edit_customer', id=customer['id']) }}" hx-target="#modal-container">
+            Edit
+        </button>
+    {% endif %}
 </div>
 
 <!-- Customer Info -->
@@ -33,20 +35,22 @@
         </div>
     </div>
 
-    <div class="card flex-1">
-        <div class="card-header">
-            <h3>Financial Summary</h3>
-        </div>
-        <div class="card-body">
-            <dl class="details-list">
-                <dt>Total Spent</dt>
-                <dd class="stat-value">{{ customer['total_spent']|vnd }}</dd>
+    {% if is_admin %}
+        <div class="card flex-1">
+            <div class="card-header">
+                <h3>Financial Summary</h3>
+            </div>
+            <div class="card-body">
+                <dl class="details-list">
+                    <dt>Total Spent</dt>
+                    <dd class="stat-value">{{ customer['total_spent']|vnd }}</dd>
 
-                <dt>Outstanding Debt</dt>
-                <dd class="stat-value" style="color: var(--danger);">{{ customer['outstanding_debt']|vnd }}</dd>
-            </dl>
+                    <dt>Outstanding Debt</dt>
+                    <dd class="stat-value" style="color: var(--danger);">{{ customer['outstanding_debt']|vnd }}</dd>
+                </dl>
+            </div>
         </div>
-    </div>
+    {% endif %}
 </div>
 
 <!-- Order History -->
@@ -57,7 +61,7 @@
     <div class="card-body">
         {% if orders %}
             <div class="table-wrapper">
-                <table class="table">
+                <table class="table mobile-card-table">
                     <thead>
                         <tr>
                             <th>Code</th>

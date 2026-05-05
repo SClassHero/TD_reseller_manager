@@ -23,12 +23,22 @@
 
             <form method="POST" action="{{ url_for('login') }}" class="login-form">
                 <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username"
+                           value="{{ request.form.get('username', 'admin') }}"
+                           required class="form-input" autocomplete="username">
+                </div>
+
+                <div class="form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" name="password" required autofocus class="form-input">
+                    <input type="password" id="password" name="password" required autofocus class="form-input" autocomplete="current-password">
                 </div>
 
                 <button type="submit" class="btn btn-primary btn-block">Login</button>
             </form>
+            <p style="text-align:center; margin-top:12px; font-size:0.875rem;">
+                <a href="{{ url_for('recover') }}" style="color:#6b7280;">Forgot password?</a>
+            </p>
         </div>
     </div>
 </body>

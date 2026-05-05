@@ -11,8 +11,10 @@ A self-hosted inventory management web app for a small Vietnamese e-commerce bus
 Built with Flask + HTMX + SQLite. Runs on a Windows PC or NAS (accessible over the local network).
 
 **Default URL:** `http://localhost:5000`
-**Default password:** `admin123` (stored as plaintext in `settings.password_hash` — no hashing, by design for simplicity)
+**Default admin login:** username `admin`, password `admin123` (stored as a Werkzeug password hash)
 **Primary currency:** VND (Vietnamese Dong), with a live USD toggle
+
+**Current auth note:** Login uses the `users` table. `settings.password_hash` is still mirrored for the admin account so password recovery and old backups remain compatible. Old plaintext values are migrated to Werkzeug hashes on startup.
 
 ---
 
@@ -24,8 +26,23 @@ python app.py
 # → Running on http://0.0.0.0:5000
 ```
 
-Requirements: `pip install flask` (and whatever is in `requirements.txt`).
+Requirements: `pip install -r requirements.txt` (Flask + openpyxl for Excel exports).
 The SQLite database (`inventory.db`) is created automatically on first run via `init_db()`.
+openpyxl is only needed for XLSX export; CSV export works without it.
+
+---
+
+## How to Test
+
+```bash
+python test_app.py                    # 396 tests: app CRUD, role access, mobile markup, exports, CSRF
+python test_backup.py                 # 16 tests: backup/restore/reset/deployment smoke tests
+python test_real_world_scenarios.py   # 129 tests: golden-ledger FIFO/accounting
+python test_edge_cases.py             # 78 tests: cancellation, guards, cumulative validation
+python test_edge_cases_2.py           # 53 tests: partial returns, overpayment, recovery code
+```
+
+Total: 672 tests, all passing. Auto-backup is suppressed under Flask `TESTING` mode.
 
 ---
 
@@ -36,7 +53,7 @@ The SQLite database (`inventory.db`) is created automatically on first run via `
 | Backend | Python 3.10+, Flask with Blueprints |
 | Database | SQLite via `sqlite3` stdlib (no ORM) |
 | Frontend | Jinja2 templates, HTMX 1.9 for partials |
-| Auth | Simple session cookie + plaintext password |
+| Auth | Simple session cookie + `users` table + Werkzeug password hashes |
 | Uploads | Flask static file serving (`static/uploads/products/`) |
 
 ---
@@ -46,8 +63,12 @@ The SQLite database (`inventory.db`) is created automatically on first run via `
 ```
 inventory_app_v5/
 ├── app.py                  # App factory, filters, context processors, currency switch
-├── auth.py                 # login_required decorator
+├── auth.py                 # login/admin decorators and limited-role guard
+├── list_utils.py           # Shared list search/sort/pagination helpers
 ├── db.py                   # Schema, init_db(), generate_code(), generate_product_code()
+├── Dockerfile              # Container image for Synology/Container Manager deployment
+├── docker-compose.synology.yml
+├── DEPLOY_SYNOLOGY.md      # Step-by-step DSM 7 deployment guide
 ├── inventory.db            # SQLite database (do not commit)
 ├── requirements.txt
 ├── static/
@@ -58,14 +79,15 @@ inventory_app_v5/
 │   ├── categories.py
 │   ├── customers.py        # Includes /generate-code API endpoint
 │   ├── dashboard.py        # get_revenue_and_profit_data(), _calc_cogs(), get_monthly_revenue_data()
+│   ├── exports.py          # CSV and XLSX export for Products/Customers/Orders/Inventory
 │   ├── imports.py
 │   ├── inventory.py        # Intake CRUD; allows negative qty for backorders
 │   ├── orders.py           # FIFO helpers: _deduct_inventory_fifo(), _restore_inventory_from_allocations()
 │   ├── products.py         # Includes /generate-code API endpoint, photo upload
 │   ├── refunds.py          # Full CRUD including edit + delete
-│   ├── reports.py
+│   ├── reports.py          # Sales, Inventory, Profit (FIFO COGS), Customer Debt Aging
 │   ├── returns.py
-│   └── settings.py         # Exchange rate, password, backup, DB reset
+│   └── settings.py         # Exchange rate, passwords/accounts, backup, DB reset
 └── templates/
     ├── base.html            # Sidebar nav, currency toggle button, flash messages
     ├── partials/            # HTMX modal partials (loaded via hx-get, submitted via regular POST)
@@ -82,7 +104,11 @@ inventory_app_v5/
 
 ### Key tables and their roles
 
-**`settings`** — single row; holds `app_name`, `password_hash`, `default_currency`, `vnd_usd_rate`.
+**`settings`** — single row; holds `app_name`, mirrored admin `password_hash`, `default_currency`, `vnd_usd_rate`, backup prefs, and recovery code hash.
+
+**`users`** — login accounts: `username` (UNIQUE), `password_hash`, `role` (`admin` or `limited`), `is_active`.
+- `admin` has full access. On migration, the first admin user is seeded from `settings.password_hash`.
+- `limited` is view-only: Products, Inventory, Customers, Orders, order detail, and customer detail. It cannot access Dashboard, Reports, Settings, Imports/Exports, Returns, Refunds, new/edit forms, or any POST changes.
 
 **`categories`** — `id`, `name` (UNIQUE), `description`.
 
@@ -93,7 +119,7 @@ inventory_app_v5/
 
 **`customers`** — `id`, `customer_code` (UNIQUE), `name`, `email`, `phone`, `address`, `region`, `total_spent`, `outstanding_debt`, `is_active`.
 - ⚠️ `outstanding_debt` is a **stale cached field** — do NOT use it for display. Customer debt is always computed live from orders + payments (see customers.py list query).
-- `total_spent` is incremented on order Complete and decremented on Reopen.
+- `total_spent` is incremented when an order first becomes an active sale (`processing` or `completed`) and decremented when that active sale is reopened to `draft` or cancelled.
 
 **`inventory`** — `id`, `product_id`, `quantity`, `remaining_quantity`, `cost_price`, `shipping_cost`, `currency`, `intake_date`, `notes`.
 - `quantity` = original intake amount (can be negative for backorders/pre-orders).
@@ -102,12 +128,14 @@ inventory_app_v5/
 
 **`orders`** — `id`, `order_code`, `customer_id`, `order_status` (draft/processing/completed/cancelled), `payment_status` (not_paid/partially_paid/fully_paid), `subtotal`, `discount_amount`, `shipping_fee`, `shipping_paid_by` (customer/seller), `total_amount`.
 - `total_amount` = what the customer owes = `subtotal − discount + shipping_fee` (only if `shipping_paid_by = 'customer'`).
+- `draft` has no stock/accounting effect and is the only status that can be edited or deleted.
+- `processing` and `completed` are active sale statuses: they reserve/deduct stock through FIFO allocations and count in revenue, COGS, customer debt, reports, exports, and dashboard totals.
 
 **`order_items`** — `id`, `order_id`, `product_id`, `quantity`, `unit_price`, `discount_percent`, `line_total`.
 - `unit_price` is the **actual agreed sale price** entered per order — this is what drives revenue.
 
 **`order_allocations`** — `id`, `order_id`, `inventory_lot_id`, `product_id`, `quantity_allocated`, `cost_price_at_sale`.
-- Written when order → Completed (FIFO deduction). Deleted when order → Reopened.
+- Written when an order first moves from `draft` into `processing` or `completed`. If a Processing backorder later moves to Completed after stock arrives, any still-unallocated quantity is allocated then. Deleted when the active sale is reopened to `draft` or cancelled.
 - `cost_price_at_sale` = the `inventory.cost_price` of the specific lot consumed. This is the **authoritative COGS source**.
 
 **`payments`** — `id`, `order_id`, `amount`, `payment_date`, `payment_method`, `notes`.
@@ -115,7 +143,9 @@ inventory_app_v5/
 **`refunds`** — `id`, `refund_code`, `order_id`, `return_id` (nullable FK), `amount`, `refund_date`, `refund_method`, `reason`, `notes`.
 - Full CRUD: create, edit (all fields except `refund_code`), delete.
 
-**`returns`** / **`return_items`** — tracks physical returns of goods.
+**`returns`** / **`return_items`** — tracks physical returns of goods. `return_items` also stores returned-goods restock metadata: `restock_action`, `restock_quantity`, `restock_unit_cost`, `restock_shipping_cost`, and `restock_inventory_lot_id`.
+
+**`inventory_adjustments`** — auditable stock write-offs/adjustments by inventory lot. Uses `AD######` codes. Stores `inventory_lot_id`, `product_id`, optional `return_item_id`, signed `quantity_delta`, `unit_cost`, `total_cost`, `reason`, `notes`, and `adjustment_date`.
 
 ---
 
@@ -128,7 +158,7 @@ orders.total_amount  (denormalized, recomputed on every save)
    − discount_amount
    + shipping_fee  (only if shipping_paid_by = 'customer')
 ```
-Dashboard sums `total_amount` across completed orders. `products.sale_price` is never used.
+Dashboard/reports sum `total_amount` across active sale orders (`processing`, `completed`). `products.sale_price` is never used.
 
 ### COGS — FIFO (primary path)
 ```
@@ -138,15 +168,15 @@ Only orders with allocation records use FIFO. Legacy orders (HD000001, HD000002)
 
 ### COGS — Fallback (legacy orders only)
 ```python
-# In _calc_cogs() — only fires when COUNT(allocations) = 0, NOT when SUM = 0
+# In _calc_cogs() — applies per active sale order only when that order has no allocations
 SUM(order_items.quantity × COALESCE(products.cost_price, AVG(inventory.cost_price), 0))
 ```
-This is the only place `products.cost_price` affects financial calculations.
+Mixed periods are valid: FIFO orders contribute allocation COGS, while known legacy no-allocation orders (`HD000001`, `HD000002`) contribute fallback COGS. Modern zero-stock/backorder completions with no allocations do not use fallback COGS. This is the only place `products.cost_price` affects financial calculations.
 
 ### Net Revenue
 ```
-Gross Revenue (completed orders total_amount)
-− Total Refunds (SUM refunds.amount linked to completed orders)
+Gross Revenue (processing/completed orders total_amount)
+− Total Refunds (SUM refunds.amount linked to processing/completed orders)
 = Net Revenue
 ```
 
@@ -155,11 +185,16 @@ Gross Revenue (completed orders total_amount)
 Net Revenue − COGS (FIFO) − Seller Shipping
 ```
 
+### Inventory Write-offs
+Inventory write-offs are **not** sales COGS and do not change order revenue, refunds, customer debt, or FIFO allocations. They reduce `inventory.remaining_quantity` for one lot and create an `inventory_adjustments` row with `quantity_delta < 0`.
+
+Write-off `unit_cost` uses the same economic cost basis as FIFO: `inventory.cost_price + shipping_cost / quantity` when the lot quantity is positive. Dashboard and Profit Report show write-offs separately as `inventory_adjustments`; `gross_profit` remains sales profit, and `adjusted_profit` subtracts write-offs.
+
 ### Customer Outstanding Debt (always computed live)
 ```sql
-SELECT SUM(o.total_amount) FROM orders WHERE customer_id=? AND status='completed'
+SELECT SUM(o.total_amount) FROM orders WHERE customer_id=? AND status IN ('processing','completed')
 MINUS
-SELECT SUM(p.amount) FROM payments p JOIN orders o ... WHERE customer_id=? AND status='completed'
+SELECT SUM(p.amount) FROM payments p JOIN orders o ... WHERE customer_id=? AND status IN ('processing','completed')
 ```
 Never trust `customers.outstanding_debt` column for display — it's a stale cache.
 
@@ -167,17 +202,23 @@ Never trust `customers.outstanding_debt` column for display — it's a stale cac
 
 ## FIFO Implementation (`routes/orders.py`)
 
-### On Order → Completed: `_deduct_inventory_fifo(cursor, order_id, items)`
+### On Draft → Processing/Completed: `_deduct_inventory_fifo(cursor, order_id, items)`
 ```sql
 SELECT id, remaining_quantity, cost_price
 FROM inventory
 WHERE product_id = ? AND remaining_quantity > 0
 ORDER BY intake_date ASC, id ASC   -- oldest lot first = FIFO
 ```
-For each lot, takes `min(needed, lot.remaining_quantity)`, decrements `remaining_quantity`, and writes one `order_allocations` row capturing `cost_price_at_sale`. If stock is insufficient, warns but does NOT block (backorder scenario).
+For each lot, takes `min(needed, lot.remaining_quantity)`, decrements `remaining_quantity`, and writes one `order_allocations` row capturing `cost_price_at_sale`. If stock is insufficient, warns but does NOT block (backorder scenario). The order still becomes an active sale; unallocated COGS remains 0 until stock is later allocated.
 
-### On Order → Reopened: `_restore_inventory_from_allocations(cursor, order_id)`
-Reads all `order_allocations` for the order, increments `remaining_quantity` on each exact source lot, then deletes all allocation rows. This is a precise reversal — stock goes back to the exact lot it came from.
+### On Processing → Completed: `_allocate_unreserved_stock(cursor, order_id)`
+Attempts FIFO allocation for any order quantity not already allocated. This supports a Processing backorder where stock arrives after the order was accepted.
+
+### On Active Sale → Draft/Cancelled: `_restore_inventory_from_allocations(cursor, order_id)`
+Reads all `order_allocations` for the order, increments `remaining_quantity` on each exact source lot, then deletes all allocation rows. This is a precise reversal for order cancellation/reopen — stock goes back to the exact lot it came from.
+
+### Returns and Restock Accounting
+Returns do **not** restore into original FIFO lots. Restocked goods create a new intake lot (`cost_price` defaults to 0). Original sale COGS and seller shipping are unaffected. After-the-fact restock is available from Return Detail for items without a linked lot. Returned-goods lots can be written off from Return Detail; write-off qty must be ≤ lot's current `remaining_quantity`.
 
 ---
 
@@ -195,24 +236,20 @@ All codes are unique, user-overridable at creation, and editable after creation 
 
 ## DB Migration Pattern
 
-`init_db()` in `db.py` uses a safe `_migrate_add_column()` helper to add columns to existing databases without breaking restarts:
+Use `_migrate_add_column(table, column, definition)` in `db.py` for every new column. Never use raw `ALTER TABLE` at the top level. See `SCHEMA_CHANGELOG.md` for migration history.
 
-```python
-def _migrate_add_column(table, column, definition):
-    try:
-        cursor.execute(f'SELECT {column} FROM {table} LIMIT 1')
-    except Exception:
-        cursor.execute(f'ALTER TABLE {table} ADD COLUMN {column} {definition}')
-```
+### Schema versioning — CRITICAL for backup/restore compatibility
 
-Always use this for any new column. Never use raw `ALTER TABLE` at the top level.
+`db.py` exports `SCHEMA_VERSION = <int>`. Every structural schema change must:
 
-Migrations applied so far:
-- `order_allocations.cost_price_at_sale`
-- `orders.shipping_paid_by`
-- `refunds.return_id`
-- `inventory.shipping_cost`
-- `products.product_code_custom` (unused, safe to ignore)
+1. Use `_migrate_add_column()` for new columns, `CREATE TABLE IF NOT EXISTS` for new tables
+2. **Increment `SCHEMA_VERSION`** in `db.py`
+3. **Add an entry to `SCHEMA_CHANGELOG.md`** describing what changed
+4. Test: backup at old version → apply change → restore → verify data + new columns have correct defaults
+
+**Never do:** raw `ALTER TABLE`, dropping columns, renaming columns, or changing column types without a data transformation migration.
+
+Backups embed `schema_version` in their filename and `backup_info.json`. When restoring an older backup into a newer app, `init_db()` is automatically called to apply missing migrations. This is why the `_migrate_add_column` + `CREATE TABLE IF NOT EXISTS` pattern is mandatory — it is the migration engine.
 
 ---
 
@@ -223,6 +260,27 @@ Migrations applied so far:
 - Session key `display_currency` ('VND' or 'USD') controls display. Toggle via `POST /switch-currency`.
 - The `|vnd` Jinja filter reads session + g to format any number in the current display currency.
 - All monetary values are stored in VND internally. USD display is conversion-only.
+- Inventory intake with `currency = 'USD'` converts submitted unit cost and inbound shipping to VND using `settings.vnd_usd_rate`; `inventory.currency` stores the source currency label and `inventory.exchange_rate` stores the rate used.
+
+---
+
+## Deployment Runtime Paths
+
+Local development still defaults to repo-relative runtime files:
+
+- `inventory.db`
+- `.secret_key`
+- `backups/`
+- `static/uploads/products/`
+
+For Synology Container Manager/Docker, these can be redirected into a mounted data volume with environment variables:
+
+- `INVENTORY_DB`
+- `INVENTORY_SECRET_KEY_FILE`
+- `INVENTORY_BACKUPS_DIR`
+- `INVENTORY_UPLOADS_DIR`
+
+`docker-compose.synology.yml` maps DB/backups/secret key to `/data`; it also mounts `./data/uploads/products` into `/app/static/uploads/products` so product photos persist while still being served by Flask's static route. See `DEPLOY_SYNOLOGY.md`.
 
 ---
 
@@ -236,6 +294,13 @@ Migrations applied so far:
 **Partial tables** (`partials/*_table.html`):
 - Returned for HTMX search/filter/pagination requests (`HX-Request` header check).
 - Full page returned otherwise.
+
+**List browsing controls**:
+- Products, Categories, Customers, Inventory, Orders, Returns, and Refunds use GET-based search/filter/sort/per-page controls so browser refresh/back/bookmark behavior is predictable on desktop and mobile.
+- Route code must validate user-controlled sort keys through per-route allowlists and `list_utils.py`; never interpolate raw query-string sort values into SQL.
+- Use `templates/partials/list_pagination.html` for visible result counts and compact Previous/Next/page links. Preserve active search/filter/sort/per-page parameters in `pagination_params`.
+
+**Mobile tables**: Add `mobile-card-table` to every `<table class="table">`. CSS converts rows to labeled cards on phone widths; `applyMobileTableLabels()` in `base.html` fills missing `data-label` attributes on load and after HTMX swaps. Modal partials use `.modal-body`/`.modal-footer` and `.modal-field-grid`/`.modal-code-row` for responsive layout.
 
 **Jinja2 gotcha:** Do NOT use backslash-escaping inside template expressions inside HTML attributes (e.g. `onclick="...{{ var\['key'\] }}"` breaks). Use `data-*` attributes instead:
 ```html
@@ -251,25 +316,9 @@ Migrations applied so far:
 
 ---
 
-## Features Implemented (as of April 2026)
+## Implementation Status
 
-- Full CRUD: Products, Categories, Customers, Inventory, Orders, Returns, Refunds, Payments, Reports
-- **Product codes** — manual or category-based auto-gen (2-letter prefix + 4 digits)
-- **Product photos** — up to 3 per product, stored in `static/uploads/products/`
-- **Customer codes** — manual or auto-gen (`KH######`), editable
-- **Inventory intake** — `shipping_cost` field (cost to warehouse, separate from order shipping)
-- **Negative inventory** — allowed for backorder/pre-order scenarios; shown highlighted in amber
-- **FIFO order completion** — deducts from oldest lot first; records allocation with per-lot cost
-- **Order reopen** — precisely restores exact inventory lots
-- **Payments** — add, edit, delete inline; payment_status auto-recalculates
-- **Shipping modes** — Customer pays (added to order total) vs Seller pays (cost only, not in total)
-- **Refunds** — full CRUD (create, edit all fields, delete); no manual recalc needed anywhere
-- **Returns** — linked to refunds optionally
-- **Currency toggle** — VND ↔ USD, session-based, rate from Settings
-- **Customer debt** — computed live from DB, not from cached column
-- **Dashboard** — Net Revenue, COGS (FIFO), Seller Shipping, Gross Profit, Margin; period filter
-- **COGS fallback fix** — checks `COUNT(allocations) > 0` not `SUM > 0` (prevents silent override by `products.cost_price`)
-- **DB migrations** — safe column additions via `_migrate_add_column()` on every startup
+All major features are complete and tested (672 tests passing). Full CRUD for Products, Categories, Customers, Inventory, Orders, Returns, Refunds, Payments, Reports, Export, Import. FIFO stock allocation, order state machine, customer debt, write-offs, multi-role auth, backup/restore, mobile-responsive UI, Synology Container Manager/NAS deployment. See test files and the sections above for behavioral details.
 
 ---
 
@@ -281,3 +330,12 @@ Migrations applied so far:
 - Do not use backslash escapes in Jinja2 attribute expressions — use `data-*` attributes.
 - Do not redirect form errors back to the partial (modal) URL — redirect to the list page so flash messages render in `base.html`.
 - Do not add a new DB column without using `_migrate_add_column()` — users have live databases.
+- Do not increment `SCHEMA_VERSION` without updating `SCHEMA_CHANGELOG.md` — they must stay in sync.
+- Do not make destructive schema changes (DROP COLUMN, RENAME COLUMN) without a data migration path.
+- Do not compute inventory stock value using `products.cost_price` — always use `inventory.cost_price * remaining_quantity` per lot.
+- Do not compute COGS using `products.cost_price` — always use FIFO allocations first; legacy fallback only applies to known legacy no-allocation orders (`HD000001`, `HD000002`).
+- Do not restore returned goods directly into the original FIFO lots. Use returned-goods intake lots so original sale COGS remains on the failed sale and resale does not double-count original purchase cost.
+- Do not represent damaged/lost stock with negative intake unless explicitly modeling a backorder/pre-order. Use `inventory_adjustments` write-offs so stock loss is auditable and separated from sales COGS.
+- Do not validate refund amounts against order total in isolation — always check `new_amount + SUM(existing refunds for this order) <= order.total_amount`. For edits, exclude the refund being edited (`AND id != current_refund_id`). A single-refund check passes even when the cumulative total already exceeds the cap. See `routes/refunds.py` `create_refund()` and `update_refund()`.
+- Do not allow `discount_amount > subtotal` on an order — this produces a negative `total_amount` which corrupts customer debt, revenue reporting, and payment validation. Validate in both `create_order()` and `update_order()` in `routes/orders.py`.
+- Do not validate payment amounts in isolation — always check `new_amount + SUM(existing payments for this order) <= order.total_amount` before inserting. Without this guard, overpayment is silently accepted. See `routes/orders.py` `add_payment()`.

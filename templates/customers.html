@@ -5,25 +5,63 @@
 {% block content %}
 <div class="page-header">
     <h1>Customers</h1>
-    <button class="btn btn-primary" hx-get="{{ url_for('customers.new_customer') }}" hx-target="#modal-container">
-        + Add Customer
-    </button>
+    {% if is_admin %}
+        <button class="btn btn-primary" hx-get="{{ url_for('customers.new_customer') }}" hx-target="#modal-container">
+            + Add Customer
+        </button>
+    {% endif %}
 </div>
 
-<!-- Search Bar -->
-<div class="filter-bar">
-    <input type="text"
-           placeholder="Search customers..."
-           class="search-input"
-           hx-get="{{ url_for('customers.customers_list') }}"
-           hx-trigger="input changed delay:300ms"
-           hx-target="#customers-table"
-           hx-swap="innerHTML"
-           name="search"
-           value="{{ search or '' }}">
-</div>
+<form class="filter-bar list-controls" method="GET" action="{{ url_for('customers.customers_list') }}">
+    <div class="list-control-group search-control">
+        <label for="customer-search">Search</label>
+        <input id="customer-search"
+               type="search"
+               name="search"
+               placeholder="Name, code, phone, email, or region"
+               class="search-input"
+               value="{{ search or '' }}">
+    </div>
 
-<!-- Customers Table -->
+    <div class="list-control-group">
+        <label for="customer-sort">Sort</label>
+        <select id="customer-sort" class="filter-select" name="sort">
+            <option value="name" {% if sort == 'name' %}selected{% endif %}>Name</option>
+            <option value="code" {% if sort == 'code' %}selected{% endif %}>Code</option>
+            <option value="region" {% if sort == 'region' %}selected{% endif %}>Region</option>
+            {% if is_admin %}
+                <option value="spent" {% if sort == 'spent' %}selected{% endif %}>Total spent</option>
+                <option value="debt" {% if sort == 'debt' %}selected{% endif %}>Outstanding debt</option>
+            {% endif %}
+            <option value="created" {% if sort == 'created' %}selected{% endif %}>Date added</option>
+        </select>
+    </div>
+
+    <div class="list-control-group">
+        <label for="customer-direction">Direction</label>
+        <select id="customer-direction" class="filter-select" name="direction">
+            <option value="asc" {% if direction == 'asc' %}selected{% endif %}>Low to high</option>
+            <option value="desc" {% if direction == 'desc' %}selected{% endif %}>High to low</option>
+        </select>
+    </div>
+
+    <div class="list-control-group">
+        <label for="customer-per-page">Rows</label>
+        <select id="customer-per-page" class="filter-select" name="per_page">
+            {% for option in per_page_options %}
+                <option value="{{ option }}" {% if per_page == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="list-control-actions">
+        <button class="btn btn-secondary" type="submit">Apply</button>
+        {% if search or sort != 'name' or direction != 'asc' or per_page != 25 %}
+            <a class="btn btn-outline" href="{{ url_for('customers.customers_list') }}">Reset</a>
+        {% endif %}
+    </div>
+</form>
+
 <div class="card">
     <div class="card-body">
         {% if customers %}
@@ -32,37 +70,13 @@
                     {% include 'partials/customers_table.html' %}
                 </div>
             </div>
-
-            <!-- Pagination -->
-            {% if total_pages > 1 %}
-                <div class="pagination">
-                    {% if page > 1 %}
-                        <a href="{{ url_for('customers.customers_list', page=page - 1, search=search) }}"
-                           hx-get="{{ url_for('customers.customers_list', page=page - 1, search=search) }}"
-                           hx-target="#customers-table"
-                           hx-swap="innerHTML"
-                           class="btn btn-outline btn-sm">
-                            Previous
-                        </a>
-                    {% endif %}
-
-                    <span class="pagination-info">
-                        Page {{ page }} of {{ total_pages }}
-                    </span>
-
-                    {% if page < total_pages %}
-                        <a href="{{ url_for('customers.customers_list', page=page + 1, search=search) }}"
-                           hx-get="{{ url_for('customers.customers_list', page=page + 1, search=search) }}"
-                           hx-target="#customers-table"
-                           hx-swap="innerHTML"
-                           class="btn btn-outline btn-sm">
-                            Next
-                        </a>
-                    {% endif %}
-                </div>
-            {% endif %}
+            {% with endpoint='customers.customers_list' %}
+                {% include 'partials/list_pagination.html' %}
+            {% endwith %}
         {% else %}
-            <p class="text-muted">No customers found.</p>
+            <div class="empty-state">
+                <p>No customers found.</p>
+            </div>
         {% endif %}
     </div>
 </div>

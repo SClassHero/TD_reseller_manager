@@ -53,7 +53,7 @@
 </div>
 
 <!-- Revenue & Profit Cards -->
-<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+<div class="stats-grid revenue-stats-grid">
     <div class="stat-card" style="border-top-color: #16a34a;">
         <div class="stat-label">Net Revenue</div>
         <div class="stat-value" style="color: #16a34a; font-size: 1.4rem;">{{ period_data.total_revenue|vnd }}</div>
@@ -67,12 +67,15 @@
     </div>
 
     <div class="stat-card" style="border-top-color: #dc2626;">
-        <div class="stat-label">Total Costs</div>
+        <div class="stat-label">Sales Costs</div>
         <div class="stat-value" style="color: #dc2626; font-size: 1.4rem;">{{ period_data.total_costs|vnd }}</div>
         <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 0.5rem;">
             COGS: {{ period_data.total_cogs|vnd }}
             {% if period_data.seller_shipping > 0 %}
                 <br>Shipping (ours): {{ period_data.seller_shipping|vnd }}
+            {% endif %}
+            {% if period_data.inventory_adjustments > 0 %}
+                <br>Write-offs: {{ period_data.inventory_adjustments|vnd }}
             {% endif %}
         </div>
     </div>
@@ -82,7 +85,12 @@
         <div class="stat-value" style="font-size: 1.4rem; color: {% if period_data.gross_profit >= 0 %}#16a34a{% else %}#dc2626{% endif %};">
             {{ period_data.gross_profit|vnd }}
         </div>
-        <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 0.5rem;">Net revenue minus costs</div>
+        <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 0.5rem;">
+            Net revenue minus sales costs
+            {% if period_data.inventory_adjustments > 0 %}
+                <br>After write-offs: {{ period_data.adjusted_profit|vnd }}
+            {% endif %}
+        </div>
     </div>
 
     <div class="stat-card" style="border-top-color: #f59e0b;">
@@ -148,14 +156,14 @@
     </div>
 </div>
 
-<!-- Inventory & Operations Stats -->
+<!-- Operations Stats -->
 <div class="stats-grid">
     <div class="stat-card">
         <div class="stat-label">Total Products</div>
         <div class="stat-value">{{ total_products|number }}</div>
     </div>
     <div class="stat-card">
-        <div class="stat-label">Total Stock</div>
+        <div class="stat-label">Total Stock Units</div>
         <div class="stat-value">{{ total_stock|number }}</div>
     </div>
     <div class="stat-card">
@@ -166,14 +174,36 @@
         <div class="stat-label">Inventory Value</div>
         <div class="stat-value" style="font-size: 1.3rem;">{{ inventory_value|vnd }}</div>
     </div>
-    <div class="stat-card">
-        <div class="stat-label">Pending Orders</div>
+    <div class="stat-card {% if pending_orders > 0 %}stat-card-alert{% endif %}">
+        <div class="stat-label">Processing Orders</div>
         <div class="stat-value">{{ pending_orders|number }}</div>
+        {% if pending_orders > 0 %}
+        <div style="font-size:0.8rem; color:var(--text-light); margin-top:0.4rem;">
+            <a href="{{ url_for('orders.orders_list') }}?status=processing" style="color:inherit;">View orders →</a>
+        </div>
+        {% endif %}
     </div>
-    <div class="stat-card stat-card-alert">
-        <div class="stat-label">Low Stock Items</div>
+    <div class="stat-card {% if low_stock_count > 0 %}stat-card-alert{% endif %}">
+        <div class="stat-label">Low Stock</div>
         <div class="stat-value">{{ low_stock_count|number }}</div>
+        <div style="font-size:0.8rem; color:var(--text-light); margin-top:0.4rem;">
+            <a href="{{ url_for('reports.inventory_report') }}" style="color:inherit;">View report →</a>
+        </div>
     </div>
+    {% if negative_stock_count > 0 %}
+    <div class="stat-card" style="border-top-color:#f59e0b;">
+        <div class="stat-label" style="color:#92400e;">Backorders / Pre-orders</div>
+        <div class="stat-value" style="color:#92400e;">{{ negative_stock_count|number }}</div>
+        <div style="font-size:0.8rem; color:var(--text-light); margin-top:0.4rem;">Products with negative stock</div>
+    </div>
+    {% endif %}
+    {% if outstanding_collections > 0 %}
+    <div class="stat-card" style="border-top-color:#7c3aed;">
+        <div class="stat-label" style="color:#5b21b6;">Outstanding Collections</div>
+        <div class="stat-value" style="color:#5b21b6; font-size:1.3rem;">{{ outstanding_collections|vnd }}</div>
+        <div style="font-size:0.8rem; color:var(--text-light); margin-top:0.4rem;">Unpaid / partially paid orders</div>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Recent Orders -->
@@ -185,7 +215,7 @@
     <div class="card-body">
         {% if recent_orders %}
         <div class="table-wrapper">
-            <table class="table">
+            <table class="table mobile-card-table">
                 <thead>
                     <tr>
                         <th>Code</th>
@@ -193,22 +223,28 @@
                         <th>Date</th>
                         <th>Total</th>
                         <th>Status</th>
+                        <th>Payment</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for order in recent_orders %}
                     <tr>
-                        <td>
+                        <td data-label="Code">
                             <a href="{{ url_for('orders.order_detail', id=order['id']) }}">
                                 {{ order['order_code'] }}
                             </a>
                         </td>
-                        <td>{{ order['customer_name'] }}</td>
-                        <td>{{ order['order_date'][:10] if order['order_date'] else '-' }}</td>
-                        <td>{{ order['total_amount']|vnd }}</td>
-                        <td>
+                        <td data-label="Customer">{{ order['customer_name'] }}</td>
+                        <td data-label="Date">{{ order['order_date'][:10] if order['order_date'] else '-' }}</td>
+                        <td data-label="Total">{{ order['total_amount']|vnd }}</td>
+                        <td data-label="Status">
                             <span class="badge badge-{{ order['order_status'] }}">
                                 {{ order['order_status']|title }}
+                            </span>
+                        </td>
+                        <td data-label="Payment">
+                            <span style="font-size:0.8rem; color:{% if order['payment_status'] == 'fully_paid' %}#16a34a{% elif order['payment_status'] == 'partially_paid' %}#f59e0b{% else %}#dc2626{% endif %};">
+                                {{ order['payment_status'].replace('_', ' ')|title if order['payment_status'] else '-' }}
                             </span>
                         </td>
                     </tr>
@@ -221,4 +257,66 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Top Products & Customers for selected period -->
+{% if top_products or top_customers %}
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:1rem;">
+
+    {% if top_products %}
+    <div class="card">
+        <div class="card-header">
+            <h2>Top Products</h2>
+            <span style="font-size:0.8rem; color:var(--text-light);">by revenue, selected period</span>
+        </div>
+        <div class="card-body">
+            <table class="table mobile-card-table" style="font-size:0.9rem;">
+                <thead>
+                    <tr><th>Product</th><th>Units</th><th>Revenue</th></tr>
+                </thead>
+                <tbody>
+                    {% for p in top_products %}
+                    <tr>
+                        <td data-label="Product">{{ p['name'] }}<br><small class="text-muted">{{ p['product_code'] }}</small></td>
+                        <td data-label="Units">{{ p['units_sold']|number }}</td>
+                        <td data-label="Revenue">{{ p['revenue']|vnd }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if top_customers %}
+    <div class="card">
+        <div class="card-header">
+            <h2>Top Customers</h2>
+            <span style="font-size:0.8rem; color:var(--text-light);">by spend, selected period</span>
+        </div>
+        <div class="card-body">
+            <table class="table mobile-card-table" style="font-size:0.9rem;">
+                <thead>
+                    <tr><th>Customer</th><th>Orders</th><th>Spent</th></tr>
+                </thead>
+                <tbody>
+                    {% for c in top_customers %}
+                    <tr>
+                        <td data-label="Customer">
+                            <a href="{{ url_for('customers.customer_detail', id=c['customer_id']) }}">
+                                {{ c['name'] }}
+                            </a><br>
+                            <small class="text-muted">{{ c['customer_code'] }}</small>
+                        </td>
+                        <td data-label="Orders">{{ c['order_count']|number }}</td>
+                        <td data-label="Spent">{{ c['total_spent']|vnd }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endif %}
 {% endblock %}

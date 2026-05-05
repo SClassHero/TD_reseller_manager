@@ -8,151 +8,153 @@
         <form method="POST"
               enctype="multipart/form-data"
               action="{% if product %}{{ url_for('products.update_product', id=product.id) }}{% else %}{{ url_for('products.create_product') }}{% endif %}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             {% if product %}
                 <input type="hidden" name="product_id" value="{{ product.id }}">
             {% endif %}
 
-            <!-- Product Code -->
-            <div class="form-group">
-                <label for="product_code">Product Code</label>
-                <div style="display:flex; gap:8px; align-items:center;">
-                    <input type="text"
-                           id="product_code"
-                           name="product_code"
-                           class="form-input"
-                           placeholder="Leave blank to auto-generate"
-                           value="{{ product.product_code if product else suggested_code }}"
-                           style="flex:1; font-family:monospace; text-transform:uppercase;"
-                           oninput="this.value=this.value.toUpperCase()">
-                    <button type="button"
-                            class="btn btn-outline btn-sm"
-                            id="gen-code-btn"
-                            title="Auto-generate code from category"
-                            onclick="generateCode()">
-                        ↻ Generate
-                    </button>
-                </div>
-                <small class="text-muted">Format: 2-letter category prefix + 4 digits (e.g. EL0001). Or type your own.</small>
-            </div>
-
-            <div class="form-group">
-                <label for="name">Product Name *</label>
-                <input type="text"
-                       id="name"
-                       name="name"
-                       class="form-input"
-                       value="{{ product.name if product else '' }}"
-                       required>
-            </div>
-
-            <div class="form-group">
-                <label for="category_id">Category</label>
-                <select id="category_id" name="category_id" class="form-input" onchange="onCategoryChange()">
-                    <option value="">-- Select Category --</option>
-                    {% for category in categories %}
-                        <option value="{{ category.id }}" {% if product and product.category_id == category.id %}selected{% endif %}>
-                            {{ category.name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div class="modal-body">
                 <div class="form-group">
-                    <label for="sale_price">Sale Price</label>
-                    <input type="number"
-                           id="sale_price"
-                           name="sale_price"
-                           class="form-input"
-                           min="0"
-                           step="0.01"
-                           value="{{ product.sale_price if product else '' }}">
-                </div>
-
-                <div class="form-group">
-                    <label for="cost_price">Cost Price</label>
-                    <input type="number"
-                           id="cost_price"
-                           name="cost_price"
-                           class="form-input"
-                           min="0"
-                           step="0.01"
-                           value="{{ product.cost_price if product else '' }}">
-                </div>
-            </div>
-
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                <div class="form-group">
-                    <label for="barcode">Barcode</label>
-                    <input type="text"
-                           id="barcode"
-                           name="barcode"
-                           class="form-input"
-                           value="{{ product.barcode if product else '' }}">
-                </div>
-
-                <div class="form-group">
-                    <label for="min_stock_level">Min Stock Level</label>
-                    <input type="number"
-                           id="min_stock_level"
-                           name="min_stock_level"
-                           class="form-input"
-                           min="0"
-                           value="{{ product.min_stock_level if product else 0 }}">
-                </div>
-            </div>
-
-            <!-- Product Photos -->
-            <div class="form-group">
-                <label>Product Photos
-                    <span class="text-muted" style="font-weight:normal; font-size:0.85em;">
-                        (max 3 — png, jpg, gif, webp)
-                    </span>
-                </label>
-
-                {% if product_images %}
-                    <div class="photo-grid" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
-                        {% for img in product_images %}
-                            <div style="position:relative; width:90px; height:90px;">
-                                <img src="{{ url_for('static', filename='uploads/products/' ~ product.id ~ '/' ~ img.filename) }}"
-                                     alt="Product photo"
-                                     style="width:90px; height:90px; object-fit:cover; border-radius:6px; border:1px solid #ddd;">
-                                <form method="POST"
-                                      action="{{ url_for('products.delete_product_image', id=product.id, image_id=img.id) }}"
-                                      style="position:absolute; top:2px; right:2px;">
-                                    <button type="submit"
-                                            title="Delete this photo"
-                                            onclick="return confirm('Delete this photo?')"
-                                            style="background:rgba(220,53,69,0.85); color:#fff; border:none; border-radius:50%; width:20px; height:20px; font-size:12px; cursor:pointer; line-height:20px; padding:0;">
-                                        &times;
-                                    </button>
-                                </form>
-                            </div>
-                        {% endfor %}
+                    <label for="product_code">Product Code</label>
+                    <div class="modal-code-row">
+                        <input type="text"
+                               id="product_code"
+                               name="product_code"
+                               class="form-input"
+                               placeholder="Leave blank to auto-generate"
+                               value="{{ product.product_code if product else suggested_code }}"
+                               style="font-family:monospace; text-transform:uppercase;"
+                               oninput="this.value=this.value.toUpperCase()">
+                        <button type="button"
+                                class="btn btn-outline btn-sm"
+                                id="gen-code-btn"
+                                title="Auto-generate code from category"
+                                onclick="generateCode()">
+                            Generate
+                        </button>
                     </div>
-                {% endif %}
+                    <small class="text-muted">Format: 2-letter category prefix + 4 digits (e.g. EL0001). Or type your own.</small>
+                </div>
 
-                {% set slots_left = 3 - (product_images | length) %}
-                {% if slots_left > 0 %}
-                    <input type="file"
-                           name="product_images"
-                           id="product_images"
+                <div class="form-group">
+                    <label for="name">Product Name *</label>
+                    <input type="text"
+                           id="name"
+                           name="name"
                            class="form-input"
-                           accept=".png,.jpg,.jpeg,.gif,.webp"
-                           multiple
-                           style="padding:6px;">
-                    <small class="text-muted">{{ slots_left }} photo slot(s) remaining. Select up to {{ slots_left }} file(s).</small>
-                {% else %}
-                    <p class="text-muted" style="font-size:0.85em;">Maximum 3 photos reached. Delete a photo to add another.</p>
-                {% endif %}
-            </div>
+                           value="{{ product.name if product else '' }}"
+                           required>
+                </div>
 
-            <div class="form-group">
-                <label for="notes">Notes</label>
-                <textarea id="notes"
-                          name="notes"
-                          class="form-input"
-                          rows="2">{{ product.notes if product else '' }}</textarea>
+                <div class="form-group">
+                    <label for="category_id">Category</label>
+                    <select id="category_id" name="category_id" class="form-input" onchange="onCategoryChange()">
+                        <option value="">-- Select Category --</option>
+                        {% for category in categories %}
+                            <option value="{{ category.id }}" {% if product and product.category_id == category.id %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="modal-field-grid">
+                    <div class="form-group">
+                        <label for="sale_price">Sale Price</label>
+                        <input type="number"
+                               id="sale_price"
+                               name="sale_price"
+                               class="form-input"
+                               min="0"
+                               step="0.01"
+                               value="{{ product.sale_price if product else '' }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cost_price">Cost Price</label>
+                        <input type="number"
+                               id="cost_price"
+                               name="cost_price"
+                               class="form-input"
+                               min="0"
+                               step="0.01"
+                               value="{{ product.cost_price if product else '' }}">
+                    </div>
+                </div>
+
+                <div class="modal-field-grid">
+                    <div class="form-group">
+                        <label for="barcode">Barcode</label>
+                        <input type="text"
+                               id="barcode"
+                               name="barcode"
+                               class="form-input"
+                               value="{{ product.barcode if product else '' }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="min_stock_level">Min Stock Level</label>
+                        <input type="number"
+                               id="min_stock_level"
+                               name="min_stock_level"
+                               class="form-input"
+                               min="0"
+                               value="{{ product.min_stock_level if product else 0 }}">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Product Photos
+                        <span class="text-muted" style="font-weight:normal; font-size:0.85em;">
+                            (max 3 - png, jpg, gif, webp)
+                        </span>
+                    </label>
+
+                    {% if product_images %}
+                        <div class="photo-grid" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+                            {% for img in product_images %}
+                                <div style="position:relative; width:90px; height:90px;">
+                                    <img src="{{ url_for('static', filename='uploads/products/' ~ product.id ~ '/' ~ img.filename) }}"
+                                         alt="Product photo"
+                                         style="width:90px; height:90px; object-fit:cover; border-radius:6px; border:1px solid #ddd;">
+                                    <form method="POST"
+                                          action="{{ url_for('products.delete_product_image', id=product.id, image_id=img.id) }}"
+                                          style="position:absolute; top:2px; right:2px;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit"
+                                                title="Delete this photo"
+                                                onclick="return confirm('Delete this photo?')"
+                                                style="background:rgba(220,53,69,0.85); color:#fff; border:none; border-radius:50%; width:20px; height:20px; font-size:12px; cursor:pointer; line-height:20px; padding:0;">
+                                            &times;
+                                        </button>
+                                    </form>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    {% set slots_left = 3 - (product_images | length) %}
+                    {% if slots_left > 0 %}
+                        <input type="file"
+                               name="product_images"
+                               id="product_images"
+                               class="form-input"
+                               accept=".png,.jpg,.jpeg,.gif,.webp"
+                               multiple
+                               style="padding:6px;">
+                        <small class="text-muted">{{ slots_left }} photo slot(s) remaining. Select up to {{ slots_left }} file(s).</small>
+                    {% else %}
+                        <p class="text-muted" style="font-size:0.85em;">Maximum 3 photos reached. Delete a photo to add another.</p>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label for="notes">Notes</label>
+                    <textarea id="notes"
+                              name="notes"
+                              class="form-input"
+                              rows="2">{{ product.notes if product else '' }}</textarea>
+                </div>
             </div>
 
             <div class="modal-footer">

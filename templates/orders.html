@@ -5,64 +5,86 @@
 {% block content %}
 <div class="page-header">
     <h1>Orders</h1>
-    <a href="{{ url_for('orders.new_order') }}" class="btn btn-primary">
-        + New Order
-    </a>
+    {% if is_admin %}
+        <a href="{{ url_for('orders.new_order') }}" class="btn btn-primary">
+            + New Order
+        </a>
+    {% endif %}
 </div>
 
-<!-- Status Filter Tabs -->
 <div class="filter-tabs">
-    <a href="{{ url_for('orders.orders_list') }}"
-       hx-get="{{ url_for('orders.orders_list') }}"
-       hx-target="#orders-table"
-       hx-swap="innerHTML"
+    <a href="{{ url_for('orders.orders_list', search=search, sort=sort, direction=direction, per_page=per_page) }}"
        class="filter-tab {% if not status_filter %}active{% endif %}">
         All
     </a>
-    <a href="{{ url_for('orders.orders_list', status='draft') }}"
-       hx-get="{{ url_for('orders.orders_list', status='draft') }}"
-       hx-target="#orders-table"
-       hx-swap="innerHTML"
+    <a href="{{ url_for('orders.orders_list', status='draft', search=search, sort=sort, direction=direction, per_page=per_page) }}"
        class="filter-tab {% if status_filter == 'draft' %}active{% endif %}">
         Draft
     </a>
-    <a href="{{ url_for('orders.orders_list', status='processing') }}"
-       hx-get="{{ url_for('orders.orders_list', status='processing') }}"
-       hx-target="#orders-table"
-       hx-swap="innerHTML"
+    <a href="{{ url_for('orders.orders_list', status='processing', search=search, sort=sort, direction=direction, per_page=per_page) }}"
        class="filter-tab {% if status_filter == 'processing' %}active{% endif %}">
         Processing
     </a>
-    <a href="{{ url_for('orders.orders_list', status='completed') }}"
-       hx-get="{{ url_for('orders.orders_list', status='completed') }}"
-       hx-target="#orders-table"
-       hx-swap="innerHTML"
+    <a href="{{ url_for('orders.orders_list', status='completed', search=search, sort=sort, direction=direction, per_page=per_page) }}"
        class="filter-tab {% if status_filter == 'completed' %}active{% endif %}">
         Completed
     </a>
-    <a href="{{ url_for('orders.orders_list', status='cancelled') }}"
-       hx-get="{{ url_for('orders.orders_list', status='cancelled') }}"
-       hx-target="#orders-table"
-       hx-swap="innerHTML"
+    <a href="{{ url_for('orders.orders_list', status='cancelled', search=search, sort=sort, direction=direction, per_page=per_page) }}"
        class="filter-tab {% if status_filter == 'cancelled' %}active{% endif %}">
         Cancelled
     </a>
 </div>
 
-<!-- Search Bar -->
-<div class="filter-bar">
-    <input type="text"
-           placeholder="Search orders..."
-           class="search-input"
-           hx-get="{{ url_for('orders.orders_list') }}"
-           hx-trigger="input changed delay:300ms"
-           hx-target="#orders-table"
-           hx-swap="innerHTML"
-           name="search"
-           value="{{ search or '' }}">
-</div>
+<form class="filter-bar list-controls" method="GET" action="{{ url_for('orders.orders_list') }}">
+    <input type="hidden" name="status" value="{{ status_filter }}">
 
-<!-- Orders Table -->
+    <div class="list-control-group search-control">
+        <label for="order-search">Search</label>
+        <input id="order-search"
+               type="search"
+               name="search"
+               placeholder="Order code, customer, or customer code"
+               class="search-input"
+               value="{{ search or '' }}">
+    </div>
+
+    <div class="list-control-group">
+        <label for="order-sort">Sort</label>
+        <select id="order-sort" class="filter-select" name="sort">
+            <option value="date" {% if sort == 'date' %}selected{% endif %}>Order date</option>
+            <option value="code" {% if sort == 'code' %}selected{% endif %}>Order code</option>
+            <option value="customer" {% if sort == 'customer' %}selected{% endif %}>Customer</option>
+            <option value="total" {% if sort == 'total' %}selected{% endif %}>Total</option>
+            <option value="status" {% if sort == 'status' %}selected{% endif %}>Status</option>
+            <option value="payment" {% if sort == 'payment' %}selected{% endif %}>Payment</option>
+        </select>
+    </div>
+
+    <div class="list-control-group">
+        <label for="order-direction">Direction</label>
+        <select id="order-direction" class="filter-select" name="direction">
+            <option value="desc" {% if direction == 'desc' %}selected{% endif %}>High to low</option>
+            <option value="asc" {% if direction == 'asc' %}selected{% endif %}>Low to high</option>
+        </select>
+    </div>
+
+    <div class="list-control-group">
+        <label for="order-per-page">Rows</label>
+        <select id="order-per-page" class="filter-select" name="per_page">
+            {% for option in per_page_options %}
+                <option value="{{ option }}" {% if per_page == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="list-control-actions">
+        <button class="btn btn-secondary" type="submit">Apply</button>
+        {% if search or status_filter or sort != 'date' or direction != 'desc' or per_page != 25 %}
+            <a class="btn btn-outline" href="{{ url_for('orders.orders_list') }}">Reset</a>
+        {% endif %}
+    </div>
+</form>
+
 <div class="card">
     <div class="card-body">
         {% if orders %}
@@ -71,37 +93,13 @@
                     {% include 'partials/orders_table.html' %}
                 </div>
             </div>
-
-            <!-- Pagination -->
-            {% if total_pages > 1 %}
-                <div class="pagination">
-                    {% if page > 1 %}
-                        <a href="{{ url_for('orders.orders_list', page=page - 1, search=search, status=status_filter) }}"
-                           hx-get="{{ url_for('orders.orders_list', page=page - 1, search=search, status=status_filter) }}"
-                           hx-target="#orders-table"
-                           hx-swap="innerHTML"
-                           class="btn btn-outline btn-sm">
-                            Previous
-                        </a>
-                    {% endif %}
-
-                    <span class="pagination-info">
-                        Page {{ page }} of {{ total_pages }}
-                    </span>
-
-                    {% if page < total_pages %}
-                        <a href="{{ url_for('orders.orders_list', page=page + 1, search=search, status=status_filter) }}"
-                           hx-get="{{ url_for('orders.orders_list', page=page + 1, search=search, status=status_filter) }}"
-                           hx-target="#orders-table"
-                           hx-swap="innerHTML"
-                           class="btn btn-outline btn-sm">
-                            Next
-                        </a>
-                    {% endif %}
-                </div>
-            {% endif %}
+            {% with endpoint='orders.orders_list' %}
+                {% include 'partials/list_pagination.html' %}
+            {% endwith %}
         {% else %}
-            <p class="text-muted">No orders found.</p>
+            <div class="empty-state">
+                <p>No orders found.</p>
+            </div>
         {% endif %}
     </div>
 </div>

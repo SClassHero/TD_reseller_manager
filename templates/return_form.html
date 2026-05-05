@@ -8,6 +8,7 @@
 </div>
 
 <form id="return-form" method="POST" action="{{ url_for('returns.create_return') }}" class="card">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="card-body">
         <!-- Step 1: Select Order -->
         <div class="form-section">
@@ -37,6 +38,14 @@
         <div class="form-section">
             <h3>Return Details</h3>
 
+            <div class="alert alert-info" style="margin-bottom:1rem;">
+                <strong>Return accounting rule:</strong>
+                refunds reduce revenue, while the original sale keeps its FIFO COGS and any seller-paid shipping cost.
+                Each returned line defaults to restock the full return quantity as a new returned-goods intake lot,
+                valued at the restock/refurb cost entered per item. Uncheck restock or lower the restock quantity
+                when only part of the return is sellable.
+            </div>
+
             <div class="form-group">
                 <label for="return_reason">Return Reason</label>
                 <textarea id="return_reason"
@@ -46,15 +55,6 @@
                           placeholder="Explain the reason for this return..."></textarea>
             </div>
 
-            <div class="form-group">
-                <label>
-                    <input type="checkbox" name="restore_inventory" value="on">
-                    Restore inventory quantities for returned items
-                </label>
-                <p class="text-muted" style="font-size: 0.9em; margin-top: 0.5em;">
-                    Check this to automatically add returned quantities back to inventory
-                </p>
-            </div>
         </div>
     </div>
 

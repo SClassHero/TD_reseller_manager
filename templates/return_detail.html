@@ -77,13 +77,14 @@
     <div class="card-body">
         {% if items %}
             <div class="table-wrapper">
-                <table class="table">
+                <table class="table mobile-card-table">
                     <thead>
                         <tr>
                             <th>Product</th>
                             <th>Quantity</th>
                             <th>Unit Price</th>
                             <th>Refund Amount</th>
+                            <th>Restock Lot</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -97,6 +98,60 @@
                                 <td>{{ item['quantity']|number }}</td>
                                 <td>{{ item['unit_price']|vnd }}</td>
                                 <td><strong>{{ item['refund_amount']|vnd }}</strong></td>
+                                <td>
+                                    {% if item['restock_inventory_lot_id'] %}
+                                        Lot #{{ item['restock_inventory_lot_id'] }}
+                                        <br>
+                                        <small class="text-muted">
+                                            {{ item['restock_quantity']|number }} of {{ item['quantity']|number }} restocked
+                                            <br>
+                                            {{ item['restock_remaining_quantity']|number }} available
+                                            <br>
+                                            Returned item value {{ item['restock_unit_cost']|vnd }} / unit
+                                            {% if item['restock_shipping_cost'] %}
+                                                <br>
+                                                Extra restock cost {{ item['restock_shipping_cost']|vnd }}
+                                            {% endif %}
+                                        </small>
+                                        {% if item['restock_remaining_quantity'] and item['restock_remaining_quantity'] > 0 %}
+                                            <form method="POST"
+                                                  action="{{ url_for('inventory.write_off_lot', lot_id=item['restock_inventory_lot_id']) }}"
+                                                  style="margin-top:0.6rem; display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <input type="hidden" name="return_item_id" value="{{ item['id'] }}">
+                                                <input type="number"
+                                                       name="quantity"
+                                                       class="form-input"
+                                                       min="1"
+                                                       max="{{ item['restock_remaining_quantity'] }}"
+                                                       step="1"
+                                                       value="1"
+                                                       aria-label="Write-off quantity"
+                                                       style="width:72px;">
+                                                <select name="reason" class="form-input" aria-label="Write-off reason" style="width:150px;">
+                                                    <option value="damaged_unsellable">Damaged / Unsellable</option>
+                                                    <option value="lost">Lost</option>
+                                                    <option value="count_correction">Count Correction</option>
+                                                    <option value="sample_giveaway">Sample / Giveaway</option>
+                                                    <option value="other">Other</option>
+                                                </select>
+                                                <input type="text"
+                                                       name="notes"
+                                                       class="form-input"
+                                                       placeholder="Optional note"
+                                                       aria-label="Adjustment note"
+                                                       style="min-width:150px; flex:1;">
+                                                <button type="submit"
+                                                        class="btn btn-warning btn-sm"
+                                                        onclick="return confirm('Write off this returned-goods stock? This reduces available stock and records a write-off cost, but does not change revenue, refunds, or original order COGS.')">
+                                                    Write Off
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">Not restocked</span>
+                                    {% endif %}
+                                </td>
                             </tr>
                         {% endfor %}
                     </tbody>
@@ -110,6 +165,154 @@
         {% endif %}
     </div>
 </div>
+
+{% if restockable_items %}
+<!-- After-the-fact restock -->
+<div class="card">
+    <div class="card-header">
+        <h3>Restock Returned Goods</h3>
+    </div>
+    <div class="card-body">
+        <p class="text-muted">
+            Use this if returned items are sellable but were not added to inventory when the return was created.
+            This creates new returned-goods intake lots; it does not change order revenue, refunds, COGS, or profit.
+        </p>
+        <p class="field-help">
+            Most returns should keep optional resale cost at 0. Do not enter the original purchase cost unless you
+            intentionally want this new returned-goods lot to carry its own inventory value.
+        </p>
+        <form method="POST" action="{{ url_for('returns.restock_return_items', id=return_data['id']) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="return-item-list">
+                {% for item in restockable_items %}
+                    <section class="return-item-card">
+                        <div class="return-item-header">
+                            <label class="return-item-select">
+                                <input type="checkbox" name="return_item_id" value="{{ item['id'] }}" checked>
+                                <span>Restock this item</span>
+                            </label>
+                            <div class="return-item-product">
+                                <strong>{{ item['name'] }}</strong>
+                                <small class="text-muted">{{ item['product_code'] }}</small>
+                            </div>
+                        </div>
+
+                        <div class="return-item-facts">
+                            <span>Returned: <strong>{{ item['quantity']|number }}</strong></span>
+                            <span>Not yet added to inventory</span>
+                        </div>
+
+                        <div class="return-restock-panel">
+                            <div class="return-restock-grid">
+                                <label>
+                                    <span>Sellable Qty</span>
+                                    <input type="number"
+                                           name="restock_quantity_{{ item['id'] }}"
+                                           class="form-input"
+                                           min="1"
+                                           max="{{ item['quantity'] }}"
+                                           step="1"
+                                           value="{{ item['quantity'] }}"
+                                           title="How many of the returned units are good enough to sell again.">
+                                </label>
+                                <p class="field-help">
+                                    Default: same as returned qty. Lower it if only part of the return can be resold.
+                                </p>
+                            </div>
+
+                            <details class="return-cost-details">
+                                <summary>Optional resale cost</summary>
+                                <p class="field-help">
+                                    Leave these at 0 for normal returns. The original sale already kept its original COGS.
+                                </p>
+                                <div class="return-item-fields">
+                                    <label>
+                                        <span>Returned Item Value / Unit</span>
+                                        <input type="number"
+                                               name="restock_unit_cost_{{ item['id'] }}"
+                                               class="form-input"
+                                               min="0"
+                                               step="1"
+                                               value="{{ item['restock_unit_cost'] or 0 }}"
+                                               aria-label="Returned item value per unit"
+                                               title="Usually 0. Use only if this returned-goods lot should carry its own inventory value, not the original purchase cost by habit.">
+                                    </label>
+                                    <label>
+                                        <span>Extra Restock Cost</span>
+                                        <input type="number"
+                                               name="restock_shipping_cost_{{ item['id'] }}"
+                                               class="form-input"
+                                               min="0"
+                                               step="1"
+                                               value="{{ item['restock_shipping_cost'] or 0 }}"
+                                               aria-label="Extra restock cost"
+                                               title="Repair, cleaning, repackaging, or return shipping you paid to make the item sellable.">
+                                    </label>
+                                </div>
+                                <p class="field-help">
+                                    Extra cost means repair, cleaning, repackaging, or return shipping you paid.
+                                </p>
+                            </details>
+                        </div>
+                    </section>
+                {% endfor %}
+            </div>
+            <div class="form-actions" style="margin-top:1rem;">
+                <button type="submit" class="btn btn-primary"
+                        onclick="return confirm('Create returned-goods inventory lots for the selected item(s)? This changes stock only; revenue, refunds, COGS, and profit stay unchanged.')">
+                    Restock Selected Items
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if adjustments %}
+<div class="card">
+    <div class="card-header">
+        <h3>Return Stock Adjustments</h3>
+    </div>
+    <div class="card-body">
+        <p class="text-muted">
+            Write-offs reduce available returned-goods stock only. They do not change the original order revenue,
+            refund amount, FIFO COGS, or seller shipping.
+        </p>
+        <div class="table-wrapper">
+            <table class="table mobile-card-table">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Date</th>
+                        <th>Product</th>
+                        <th>Qty</th>
+                        <th>Reason</th>
+                        <th>Write-off Cost</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for adjustment in adjustments %}
+                        <tr>
+                            <td><code>{{ adjustment['adjustment_code'] }}</code></td>
+                            <td>{{ adjustment['adjustment_date'][:10] if adjustment['adjustment_date'] else '-' }}</td>
+                            <td>
+                                {{ adjustment['product_name'] }}
+                                <br>
+                                <small class="text-muted">{{ adjustment['product_code'] }}</small>
+                            </td>
+                            <td>{{ adjustment['quantity_delta']|number }}</td>
+                            <td>{{ adjustment['reason'].replace('_', ' ')|title if adjustment['reason'] else '-' }}</td>
+                            <td>{{ adjustment['total_cost']|vnd }}</td>
+                            <td>{{ adjustment['notes'] or '-' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <!-- Actions -->
 <div class="card">

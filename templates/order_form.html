@@ -17,6 +17,7 @@
         <form method="POST"
               action="{% if order %}{{ url_for('orders.update_order', id=order['id']) }}{% else %}{{ url_for('orders.create_order') }}{% endif %}"
               id="orderForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <!-- Customer + Date -->
             <div class="form-section">
@@ -46,7 +47,7 @@
             <div class="form-section">
                 <h3>Order Items</h3>
                 <div class="table-wrapper">
-                    <table class="table order-items-table" id="items-table">
+                    <table class="table mobile-card-table order-items-table" id="items-table">
                         <thead>
                             <tr>
                                 <th style="min-width:200px;">Product</th>
@@ -54,7 +55,7 @@
                                 <th style="width:130px;">Unit Price</th>
                                 <th style="width:100px;">Discount %</th>
                                 <th style="width:130px;">Line Total</th>
-                                <th style="width:70px;"></th>
+                                <th style="width:70px;">Remove</th>
                             </tr>
                         </thead>
                         <tbody id="order-items">
@@ -124,7 +125,7 @@
 // Products catalogue injected from server
 const PRODUCTS = [
     {% for p in products %}
-    { id: {{ p['id'] }}, name: {{ p['name']|tojson }}, code: {{ p['product_code']|tojson }}, price: {{ p['sale_price'] or 0 }} },
+    { id: {{ p['id'] }}, name: {{ p['name']|tojson }}, code: {{ p['product_code']|tojson }}, price: {{ p['sale_price'] or 0 }}, stock: {{ p['current_stock'] or 0 }} },
     {% endfor %}
 ];
 
@@ -148,9 +149,18 @@ function buildOptionHtml(selectedId) {
     let html = '<option value="">-- Select --</option>';
     PRODUCTS.forEach(p => {
         const sel = (p.id === selectedId) ? ' selected' : '';
-        html += `<option value="${p.id}" data-price="${p.price}"${sel}>${p.name} (${p.code})</option>`;
+        const stockLabel = p.stock <= 0 ? ` ⚠ Stock: ${p.stock}` : ` (Stock: ${p.stock})`;
+        html += `<option value="${p.id}" data-price="${p.price}" data-stock="${p.stock}"${sel}>${p.name} [${p.code}]${stockLabel}</option>`;
     });
     return html;
+}
+
+function updateStockHint(select) {
+    const hint = select.parentNode.querySelector('.stock-hint');
+    if (!hint || !select.value) { if (hint) hint.textContent = ''; return; }
+    const stock = parseInt(select.options[select.selectedIndex].getAttribute('data-stock') || '0');
+    hint.textContent = stock <= 0 ? `⚠ Out of stock (${stock})` : `In stock: ${stock}`;
+    hint.style.color = stock <= 0 ? '#dc2626' : stock < 5 ? '#f59e0b' : 'var(--text-light)';
 }
 
 function addItem(cfg) {
@@ -170,6 +180,7 @@ function addItem(cfg) {
             <select name="items[${itemIndex}][product_id]" class="form-input product-select" required>
                 ${buildOptionHtml(pid)}
             </select>
+            <small class="stock-hint" style="font-size:0.75rem; margin-top:2px; display:block;"></small>
         </td>
         <td>
             <input type="number" name="items[${itemIndex}][quantity]"
@@ -192,7 +203,13 @@ function addItem(cfg) {
     `;
 
     tbody.appendChild(row);
+    if (window.applyMobileTableLabels) {
+        window.applyMobileTableLabels(document.getElementById('items-table'));
+    }
     itemIndex++;
+    // Show stock hint for pre-selected product (edit mode)
+    const sel = row.querySelector('.product-select');
+    if (sel && sel.value) updateStockHint(sel);
     recalcRow(row);
     updateTotals();
 }
@@ -224,7 +241,7 @@ function updateTotals() {
     document.getElementById('preview-total').textContent    = '₫' + Math.round(total).toLocaleString('vi-VN');
 }
 
-// Auto-fill price when product is changed
+// Auto-fill price and show stock when product is changed
 document.addEventListener('change', e => {
     if (e.target.classList.contains('product-select')) {
         const opt = e.target.options[e.target.selectedIndex];
@@ -232,6 +249,7 @@ document.addEventListener('change', e => {
         const priceInput = row.querySelector('.price-input');
         const price = parseFloat(opt.getAttribute('data-price')) || 0;
         if (price > 0) priceInput.value = price;
+        updateStockHint(e.target);
         recalcRow(row);
         updateTotals();
     }

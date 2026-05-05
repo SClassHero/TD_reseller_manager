@@ -5,25 +5,59 @@
 {% block content %}
 <div class="page-header">
     <h1>Returns</h1>
-    <a href="{{ url_for('returns.new_return') }}" class="btn btn-primary">
-        + New Return
-    </a>
+    {% if is_admin %}
+        <a href="{{ url_for('returns.new_return') }}" class="btn btn-primary">
+            + New Return
+        </a>
+    {% endif %}
 </div>
 
-<!-- Search Bar -->
-<div class="filter-bar">
-    <input type="text"
-           placeholder="Search returns..."
-           class="search-input"
-           hx-get="{{ url_for('returns.returns_list') }}"
-           hx-trigger="input changed delay:300ms"
-           hx-target="#returns-table"
-           hx-swap="innerHTML"
-           name="search"
-           value="{{ search or '' }}">
-</div>
+<form class="filter-bar list-controls" method="GET" action="{{ url_for('returns.returns_list') }}">
+    <div class="list-control-group search-control">
+        <label for="return-search">Search</label>
+        <input id="return-search"
+               type="search"
+               name="search"
+               placeholder="Return code, order code, or customer"
+               class="search-input"
+               value="{{ search or '' }}">
+    </div>
 
-<!-- Returns Table -->
+    <div class="list-control-group">
+        <label for="return-sort">Sort</label>
+        <select id="return-sort" class="filter-select" name="sort">
+            <option value="date" {% if sort == 'date' %}selected{% endif %}>Return date</option>
+            <option value="code" {% if sort == 'code' %}selected{% endif %}>Return code</option>
+            <option value="order" {% if sort == 'order' %}selected{% endif %}>Order code</option>
+            <option value="customer" {% if sort == 'customer' %}selected{% endif %}>Customer</option>
+        </select>
+    </div>
+
+    <div class="list-control-group">
+        <label for="return-direction">Direction</label>
+        <select id="return-direction" class="filter-select" name="direction">
+            <option value="desc" {% if direction == 'desc' %}selected{% endif %}>High to low</option>
+            <option value="asc" {% if direction == 'asc' %}selected{% endif %}>Low to high</option>
+        </select>
+    </div>
+
+    <div class="list-control-group">
+        <label for="return-per-page">Rows</label>
+        <select id="return-per-page" class="filter-select" name="per_page">
+            {% for option in per_page_options %}
+                <option value="{{ option }}" {% if per_page == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="list-control-actions">
+        <button class="btn btn-secondary" type="submit">Apply</button>
+        {% if search or sort != 'date' or direction != 'desc' or per_page != 25 %}
+            <a class="btn btn-outline" href="{{ url_for('returns.returns_list') }}">Reset</a>
+        {% endif %}
+    </div>
+</form>
+
 <div class="card">
     <div class="card-body">
         {% if returns %}
@@ -32,37 +66,13 @@
                     {% include 'partials/returns_table.html' %}
                 </div>
             </div>
-
-            <!-- Pagination -->
-            {% if total_pages > 1 %}
-                <div class="pagination">
-                    {% if page > 1 %}
-                        <a href="{{ url_for('returns.returns_list', page=page - 1, search=search) }}"
-                           hx-get="{{ url_for('returns.returns_list', page=page - 1, search=search) }}"
-                           hx-target="#returns-table"
-                           hx-swap="innerHTML"
-                           class="btn btn-outline btn-sm">
-                            Previous
-                        </a>
-                    {% endif %}
-
-                    <span class="pagination-info">
-                        Page {{ page }} of {{ total_pages }}
-                    </span>
-
-                    {% if page < total_pages %}
-                        <a href="{{ url_for('returns.returns_list', page=page + 1, search=search) }}"
-                           hx-get="{{ url_for('returns.returns_list', page=page + 1, search=search) }}"
-                           hx-target="#returns-table"
-                           hx-swap="innerHTML"
-                           class="btn btn-outline btn-sm">
-                            Next
-                        </a>
-                    {% endif %}
-                </div>
-            {% endif %}
+            {% with endpoint='returns.returns_list' %}
+                {% include 'partials/list_pagination.html' %}
+            {% endwith %}
         {% else %}
-            <p class="text-muted">No returns found.</p>
+            <div class="empty-state">
+                <p>No returns found.</p>
+            </div>
         {% endif %}
     </div>
 </div>

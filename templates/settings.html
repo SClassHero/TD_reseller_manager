@@ -14,6 +14,7 @@
     </div>
     <div class="card-body">
         <form method="POST" action="{{ url_for('settings.update_settings') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label for="app_name">Application Name:</label>
                 <input type="text" id="app_name" name="app_name" value="{{ settings['app_name'] }}" class="form-input" required>
@@ -43,6 +44,7 @@
     </div>
     <div class="card-body">
         <form method="POST" action="{{ url_for('settings.change_password') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label for="old_password">Current Password:</label>
                 <input type="password" id="old_password" name="old_password" class="form-input" required>
@@ -66,18 +68,201 @@
     </div>
 </div>
 
-<!-- Backup Database -->
+<!-- Limited Access Account -->
 <div class="card">
     <div class="card-header">
-        <h2>Database Backup</h2>
+        <h2>Limited Access Account</h2>
     </div>
     <div class="card-body">
-        <p class="text-muted">Download a complete backup of your database. The backup includes all data (products, customers, orders, etc.).</p>
-        <form method="POST" action="{{ url_for('settings.backup_database') }}" style="margin-top: 15px;">
+        <form method="POST" action="{{ url_for('settings.limited_account') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label for="limited_username">Username:</label>
+                <input type="text" id="limited_username" name="username"
+                       value="{{ limited_user['username'] if limited_user else 'limited' }}"
+                       class="form-input" required autocomplete="username">
+            </div>
+
+            <div class="form-group">
+                <label for="limited_password">Password:</label>
+                <input type="password" id="limited_password" name="password"
+                       class="form-input" autocomplete="new-password">
+                {% if limited_user %}
+                    <small class="text-muted">Leave blank to keep the current password</small>
+                {% else %}
+                    <small class="text-muted">Required when creating the account</small>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="limited_confirm_password">Confirm Password:</label>
+                <input type="password" id="limited_confirm_password" name="confirm_password"
+                       class="form-input" autocomplete="new-password">
+            </div>
+
+            <label style="display:flex; align-items:center; gap:0.5rem; font-weight:500;">
+                <input type="checkbox" name="is_active" value="1"
+                       {% if not limited_user or limited_user['is_active'] %}checked{% endif %}>
+                Active
+            </label>
+
             <div class="form-actions">
-                <button type="submit" class="btn btn-success">Download Backup</button>
+                <button type="submit" class="btn btn-primary">Save Limited Account</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Recovery Code -->
+<div class="card">
+    <div class="card-header">
+        <h2>Password Recovery Code</h2>
+    </div>
+    <div class="card-body">
+        <p class="text-muted">
+            A recovery code lets you reset your password from the login page without needing SSH or terminal access —
+            essential for remote access from a phone or when away from home.
+        </p>
+        {% if settings['recovery_code_hash'] %}
+            <div class="alert alert-success" style="margin:12px 0;">
+                A recovery code is currently set. Generate a new one below to replace it (the old code will stop working immediately).
+            </div>
+        {% else %}
+            <div class="alert alert-danger" style="margin:12px 0;">
+                No recovery code is set. If you forget your password and are away from home, you will be locked out.
+            </div>
+        {% endif %}
+        <form method="POST" action="{{ url_for('settings.generate_recovery_code') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary"
+                        onclick="return confirm('Generate a new recovery code? The current code will be invalidated immediately.')">
+                    {{ 'Regenerate Recovery Code' if settings['recovery_code_hash'] else 'Generate Recovery Code' }}
+                </button>
+            </div>
+        </form>
+        <p class="text-muted" style="margin-top:8px; font-size:0.8rem;">
+            The code is shown only once — store it somewhere safe (written on paper, password manager).
+        </p>
+    </div>
+</div>
+
+<!-- Backup & Restore -->
+<div class="card">
+    <div class="card-header">
+        <h2>Backup &amp; Restore</h2>
+    </div>
+    <div class="card-body">
+
+        <!-- Auto-backup settings -->
+        <form method="POST" action="{{ url_for('settings.backup_settings') }}" style="margin-bottom:20px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+                <label style="display:flex; align-items:center; gap:6px; font-weight:500;">
+                    <input type="checkbox" name="auto_backup_enabled" value="1"
+                           {% if settings['auto_backup_enabled'] %}checked{% endif %}>
+                    Auto-backup enabled
+                </label>
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <label>Frequency:</label>
+                    <select name="auto_backup_frequency_hours" class="form-input" style="width:auto; padding:4px 8px;">
+                        <option value="168" {% if settings['auto_backup_frequency_hours'] == 168 or not settings['auto_backup_frequency_hours'] %}selected{% endif %}>Weekly</option>
+                        <option value="24"  {% if settings['auto_backup_frequency_hours'] == 24 %}selected{% endif %}>Daily</option>
+                    </select>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <label>Keep last:</label>
+                    <select name="auto_backup_keep" class="form-input" style="width:auto; padding:4px 8px;">
+                        {% for n in [7, 10, 12, 14, 20, 30] %}
+                        <option value="{{ n }}" {% if (settings['auto_backup_keep'] or 12) == n %}selected{% endif %}>{{ n }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-outline" style="white-space:nowrap;">Save</button>
+            </div>
+        </form>
+
+        {% if settings['last_auto_backup_at'] %}
+        <p class="text-muted" style="font-size:0.85rem; margin-bottom:12px;">
+            Last auto-backup: {{ settings['last_auto_backup_at'][:16].replace('T', ' ') }}
+        </p>
+        {% else %}
+        <p class="text-muted" style="font-size:0.85rem; margin-bottom:12px;">
+            No auto-backup has run yet. One will fire on your next page load when due.
+        </p>
+        {% endif %}
+
+        <!-- Manual backup -->
+        <form method="POST" action="{{ url_for('settings.backup_create') }}" style="margin-bottom:20px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary">Create Backup Now</button>
+            <small class="text-muted" style="margin-left:8px;">
+                Saves a ZIP (database + photos) to the <code>backups/</code> folder.
+            </small>
+        </form>
+
+        <!-- Backup list -->
+        {% if backups %}
+        <div style="overflow-x:auto;">
+            <table class="table mobile-card-table" style="font-size:0.9rem;">
+                <thead>
+                    <tr>
+                        <th>Date &amp; Time</th>
+                        <th>Type</th>
+                        <th>Schema</th>
+                        <th>Size</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for b in backups %}
+                    <tr>
+                        <td style="white-space:nowrap;">{{ b.modified_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                            <span style="padding:2px 8px; border-radius:4px; font-size:0.8rem; font-weight:600;
+                                background:{% if b.type == 'auto' %}#dbeafe{% elif b.type == 'manual' %}#dcfce7{% else %}#fef9c3{% endif %};
+                                color:{% if b.type == 'auto' %}#1e40af{% elif b.type == 'manual' %}#166534{% else %}#713f12{% endif %};">
+                                {{ b.type }}
+                            </span>
+                        </td>
+                        <td>v{{ b.schema_version }}</td>
+                        <td style="white-space:nowrap;">{{ b.size_mb }} MB</td>
+                        <td>
+                            <div class="action-buttons">
+                                <form method="POST" action="{{ url_for('settings.backup_restore', filename=b.filename) }}" style="display:inline;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-warning btn-sm"
+                                            data-fname="{{ b.filename }}"
+                                            onclick="return confirm('Restore from ' + this.dataset.fname + '?\n\nA safety backup of current data will be created first.\nThis will REPLACE all current data.')">
+                                        Restore
+                                    </button>
+                                </form>
+                                <a href="{{ url_for('settings.backup_download', filename=b.filename) }}"
+                                   class="btn btn-outline btn-sm">Download</a>
+                                <form method="POST" action="{{ url_for('settings.backup_delete', filename=b.filename) }}" style="display:inline;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-danger btn-sm"
+                                            data-fname="{{ b.filename }}"
+                                            onclick="return confirm('Delete ' + this.dataset.fname + '?\nThis cannot be undone.')">
+                                        Delete
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted">No backups yet. Click "Create Backup Now" or wait for the first auto-backup.</p>
+        {% endif %}
+
+        <p class="text-muted" style="font-size:0.8rem; margin-top:12px;">
+            Backups include the database and all product photos.
+            Old auto-backups beyond the "Keep last" limit are deleted automatically.
+            Manual, pre-reset, and pre-restore backups are never auto-deleted.
+        </p>
     </div>
 </div>
 
@@ -92,6 +277,7 @@
         </div>
 
         <form method="POST" action="{{ url_for('settings.reset_database') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <p class="text-muted">To confirm the reset, type <strong>RESET</strong> in the field below:</p>
             <div class="form-group">
                 <input type="text" name="confirmation" class="form-input" placeholder="Type RESET to confirm" required>

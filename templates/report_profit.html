@@ -20,8 +20,12 @@
                 <span class="detail-value">{{ overall_pl['total_revenue']|vnd }}</span>
             </div>
             <div class="detail-item">
-                <span class="detail-label">Total COGS:</span>
+                <span class="detail-label">Sales Costs:</span>
                 <span class="detail-value">{{ overall_pl['total_cogs']|vnd }}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Inventory Write-offs:</span>
+                <span class="detail-value">{{ overall_pl['inventory_adjustments']|vnd }}</span>
             </div>
             <div class="detail-item">
                 <span class="detail-label">Gross Profit:</span>
@@ -30,8 +34,19 @@
                 </span>
             </div>
             <div class="detail-item">
+                <span class="detail-label">Profit After Adjustments:</span>
+                <span class="detail-value" style="color: {% if overall_pl['adjusted_profit'] > 0 %}green{% else %}red{% endif %};">
+                    {{ overall_pl['adjusted_profit']|vnd }}
+                </span>
+            </div>
+            <div class="detail-item">
                 <span class="detail-label">Profit Margin:</span>
-                <span class="detail-value">{{ "%.2f"|format(overall_margin) }}%</span>
+                <span class="detail-value">
+                    {{ "%.2f"|format(overall_margin) }}%
+                    {% if overall_pl['inventory_adjustments'] > 0 %}
+                        <span class="text-muted">(after adjustments: {{ "%.2f"|format(adjusted_margin) }}%)</span>
+                    {% endif %}
+                </span>
             </div>
         </div>
     </div>
@@ -46,14 +61,16 @@
     <div class="card-body">
         {% if by_month %}
             <div class="table-wrapper">
-                <table class="table">
+                <table class="table mobile-card-table">
                     <thead>
                         <tr>
                             <th>Month</th>
                             <th>Orders</th>
                             <th>Revenue</th>
                             <th>COGS</th>
+                            <th>Write-offs</th>
                             <th>Profit</th>
+                            <th>After Adjust.</th>
                             <th>Margin</th>
                         </tr>
                     </thead>
@@ -65,8 +82,12 @@
                                 <td>{{ month['order_count']|number }}</td>
                                 <td>{{ month['revenue']|vnd }}</td>
                                 <td>{{ month['cogs']|vnd }}</td>
+                                <td>{{ month['inventory_adjustments']|vnd }}</td>
                                 <td style="color: {% if month['profit'] > 0 %}green{% else %}red{% endif %};">
                                     {{ month['profit']|vnd }}
+                                </td>
+                                <td style="color: {% if month['adjusted_profit'] > 0 %}green{% else %}red{% endif %};">
+                                    {{ month['adjusted_profit']|vnd }}
                                 </td>
                                 <td>{{ "%.2f"|format(margin) }}%</td>
                             </tr>
@@ -88,7 +109,7 @@
     <div class="card-body">
         {% if by_product %}
             <div class="table-wrapper">
-                <table class="table">
+                <table class="table mobile-card-table">
                     <thead>
                         <tr>
                             <th>Product Code</th>

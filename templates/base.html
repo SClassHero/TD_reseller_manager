@@ -16,15 +16,19 @@
                 <button class="hamburger-close" onclick="document.getElementById('sidebar').classList.remove('active')">×</button>
             </div>
             <nav class="sidebar-nav">
-                <a href="{{ url_for('dashboard.dashboard') }}" class="nav-link {% if current_path.startswith('/dashboard') %}active{% endif %}">
-                    Dashboard
-                </a>
+                {% if is_admin %}
+                    <a href="{{ url_for('dashboard.dashboard') }}" class="nav-link {% if current_path.startswith('/dashboard') %}active{% endif %}">
+                        Dashboard
+                    </a>
+                {% endif %}
                 <a href="{{ url_for('products.products_list') }}" class="nav-link {% if current_path.startswith('/products') %}active{% endif %}">
                     Products
                 </a>
-                <a href="{{ url_for('categories.categories_list') }}" class="nav-link {% if current_path.startswith('/categories') %}active{% endif %}">
-                    Categories
-                </a>
+                {% if is_admin %}
+                    <a href="{{ url_for('categories.categories_list') }}" class="nav-link {% if current_path.startswith('/categories') %}active{% endif %}">
+                        Categories
+                    </a>
+                {% endif %}
                 <a href="{{ url_for('customers.customers_list') }}" class="nav-link {% if current_path.startswith('/customers') %}active{% endif %}">
                     Customers
                 </a>
@@ -34,22 +38,27 @@
                 <a href="{{ url_for('orders.orders_list') }}" class="nav-link {% if current_path.startswith('/orders') %}active{% endif %}">
                     Orders
                 </a>
-                <a href="{{ url_for('returns.returns_list') }}" class="nav-link {% if current_path.startswith('/returns') %}active{% endif %}">
-                    Returns
-                </a>
-                <a href="{{ url_for('refunds.refunds_list') }}" class="nav-link {% if current_path.startswith('/refunds') %}active{% endif %}">
-                    Refunds
-                </a>
-                <hr style="margin: 10px 0; border: none; border-top: 1px solid rgba(255,255,255,0.1);">
-                <a href="{{ url_for('reports.reports_index') }}" class="nav-link {% if current_path.startswith('/reports') %}active{% endif %}">
-                    Reports
-                </a>
-                <a href="{{ url_for('imports.import_page') }}" class="nav-link {% if current_path.startswith('/import') %}active{% endif %}">
-                    Import
-                </a>
-                <a href="{{ url_for('settings.settings_page') }}" class="nav-link {% if current_path.startswith('/settings') %}active{% endif %}">
-                    Settings
-                </a>
+                {% if is_admin %}
+                    <a href="{{ url_for('returns.returns_list') }}" class="nav-link {% if current_path.startswith('/returns') %}active{% endif %}">
+                        Returns
+                    </a>
+                    <a href="{{ url_for('refunds.refunds_list') }}" class="nav-link {% if current_path.startswith('/refunds') %}active{% endif %}">
+                        Refunds
+                    </a>
+                    <hr style="margin: 10px 0; border: none; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <a href="{{ url_for('reports.reports_index') }}" class="nav-link {% if current_path.startswith('/reports') %}active{% endif %}">
+                        Reports
+                    </a>
+                    <a href="{{ url_for('imports.import_page') }}" class="nav-link {% if current_path.startswith('/import') %}active{% endif %}">
+                        Import
+                    </a>
+                    <a href="{{ url_for('exports.exports_index') }}" class="nav-link {% if current_path.startswith('/exports') %}active{% endif %}">
+                        Export
+                    </a>
+                    <a href="{{ url_for('settings.settings_page') }}" class="nav-link {% if current_path.startswith('/settings') %}active{% endif %}">
+                        Settings
+                    </a>
+                {% endif %}
             </nav>
         </aside>
 
@@ -61,18 +70,25 @@
                     <button class="hamburger-toggle" onclick="document.getElementById('sidebar').classList.add('active')">
                         ☰
                     </button>
-                    <h1 class="app-title">Inventory Manager</h1>
+                    <h1 class="app-title">
+                        {% block header_title %}
+                            {{ self.title()|striptags|replace(' - Inventory Manager', '')|trim }}
+                        {% endblock %}
+                    </h1>
                 </div>
-                <div class="header-right" style="display:flex; align-items:center; gap:12px;">
+                <div class="header-right">
                     <!-- Currency Toggle -->
-                    <form method="POST" action="{{ url_for('switch_currency') }}" style="margin:0;">
+                    <form method="POST" action="{{ url_for('switch_currency') }}" class="currency-toggle-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit"
-                                title="Switch display currency (rate: {{ vnd_usd_rate|number }} VND/USD)"
-                                style="background:none; border:1px solid rgba(255,255,255,0.4); color:#fff; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.85em; font-weight:bold;">
+                                class="currency-toggle-btn"
+                                title="Switch display currency (rate: {{ vnd_usd_rate|number }} VND/USD)">
                             {% if display_currency == 'VND' %}
-                                ₫ VND → $USD
+                                <span class="currency-toggle-full">&#8363; VND &rarr; $USD</span>
+                                <span class="currency-toggle-short">USD</span>
                             {% else %}
-                                $ USD → ₫VND
+                                <span class="currency-toggle-full">$ USD &rarr; &#8363;VND</span>
+                                <span class="currency-toggle-short">VND</span>
                             {% endif %}
                         </button>
                     </form>
@@ -116,6 +132,32 @@
                 document.getElementById('sidebar').classList.remove('active');
             });
         });
+
+        // Mobile card tables use their table headers as row labels.
+        function applyMobileTableLabels(scope) {
+            const root = scope || document;
+            const tables = root.matches && root.matches('table.mobile-card-table')
+                ? [root]
+                : Array.from(root.querySelectorAll('table.mobile-card-table'));
+            tables.forEach(table => {
+                const labels = Array.from(table.querySelectorAll('thead th'))
+                    .map(th => th.textContent.trim());
+                table.querySelectorAll('tbody tr').forEach(row => {
+                    Array.from(row.children).forEach((cell, index) => {
+                        if (cell.tagName !== 'TD' || cell.hasAttribute('data-label') || cell.hasAttribute('colspan')) {
+                            return;
+                        }
+                        if (labels[index]) {
+                            cell.setAttribute('data-label', labels[index]);
+                        }
+                    });
+                });
+            });
+        }
+
+        window.applyMobileTableLabels = applyMobileTableLabels;
+        applyMobileTableLabels(document);
+        document.body.addEventListener('htmx:afterSwap', event => applyMobileTableLabels(event.target));
     </script>
 </body>
 </html>

@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Debt Aging - Inventory Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Customer Debt Aging</h1>
+</div>
+
+<p class="text-muted" style="margin-bottom:1rem;">
+    Shows outstanding balances on processing/completed, not-yet-fully-paid orders.
+    Age is measured from the order date. Only orders with an unpaid balance are included.
+</p>
+
+<!-- Aging summary buckets -->
+{% if totals.total_owed > 0 %}
+<div class="stats-grid" style="margin-bottom:1.5rem;">
+    <div class="stat-card" style="border-top-color:#16a34a;">
+        <div class="stat-label">Current (0–7 days)</div>
+        <div class="stat-value" style="font-size:1.2rem; color:#16a34a;">{{ totals.bucket_current|vnd }}</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#f59e0b;">
+        <div class="stat-label">Short (8–30 days)</div>
+        <div class="stat-value" style="font-size:1.2rem; color:#d97706;">{{ totals.bucket_short|vnd }}</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#f97316;">
+        <div class="stat-label">Medium (31–90 days)</div>
+        <div class="stat-value" style="font-size:1.2rem; color:#ea580c;">{{ totals.bucket_medium|vnd }}</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#dc2626;">
+        <div class="stat-label">Long (90+ days)</div>
+        <div class="stat-value" style="font-size:1.2rem; color:#dc2626;">{{ totals.bucket_long|vnd }}</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#7c3aed;">
+        <div class="stat-label">Total Outstanding</div>
+        <div class="stat-value" style="font-size:1.3rem; color:#7c3aed;">{{ totals.total_owed|vnd }}</div>
+    </div>
+</div>
+
+<!-- Per-customer breakdown -->
+{% for customer in customers %}
+<div class="card" style="margin-bottom:1rem;">
+    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <div>
+            <a href="{{ url_for('customers.customer_detail', id=customer.customer_id) }}"
+               style="font-size:1rem; font-weight:600; color:var(--text); text-decoration:none;">
+                {{ customer.customer_name }}
+            </a>
+            <span class="text-muted" style="margin-left:8px; font-size:0.85rem;">{{ customer.customer_code }}</span>
+        </div>
+        <div style="font-size:1rem; font-weight:700; color:#7c3aed;">
+            Total owed: {{ customer.total_owed|vnd }}
+        </div>
+    </div>
+    <div class="card-body" style="padding-top:0;">
+        <table class="table mobile-card-table" style="font-size:0.9rem; margin-top:0.5rem;">
+            <thead>
+                <tr>
+                    <th>Order</th>
+                    <th>Date</th>
+                    <th>Order Total</th>
+                    <th>Paid</th>
+                    <th>Balance</th>
+                    <th>Age</th>
+                    <th>Bucket</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for o in customer.orders %}
+                {% set age = o.age_days %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('orders.order_detail', id=o.order_id) }}">{{ o.order_code }}</a>
+                    </td>
+                    <td style="white-space:nowrap;">{{ o.order_date }}</td>
+                    <td>{{ o.total_amount|vnd }}</td>
+                    <td>{{ o.amount_paid|vnd }}</td>
+                    <td style="font-weight:600; color:{% if age > 90 %}#dc2626{% elif age > 30 %}#ea580c{% elif age > 7 %}#d97706{% else %}#16a34a{% endif %};">
+                        {{ o.balance|vnd }}
+                    </td>
+                    <td style="white-space:nowrap;">{{ age }} day{{ 's' if age != 1 else '' }}</td>
+                    <td>
+                        <span style="padding:2px 8px; border-radius:4px; font-size:0.78rem; font-weight:600;
+                            background:{% if age > 90 %}#fee2e2{% elif age > 30 %}#ffedd5{% elif age > 7 %}#fef9c3{% else %}#dcfce7{% endif %};
+                            color:{% if age > 90 %}#dc2626{% elif age > 30 %}#ea580c{% elif age > 7 %}#d97706{% else %}#16a34a{% endif %};">
+                            {% if age > 90 %}90+ days{% elif age > 30 %}31–90 days{% elif age > 7 %}8–30 days{% else %}0–7 days{% endif %}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endfor %}
+
+{% else %}
+<div class="card">
+    <div class="card-body">
+        <p class="text-muted">No outstanding balances — all processing/completed orders are fully paid.</p>
+    </div>
+</div>
+{% endif %}
+
+<div class="form-actions">
+    <a href="{{ url_for('reports.reports_index') }}" class="btn btn-outline">Back to Reports</a>
+</div>
+{% endblock %}

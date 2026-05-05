@@ -29,6 +29,7 @@ Desk,Furniture,2000000,1200000,SKU003,2
         </div>
 
         <form method="POST" action="{{ url_for('imports.import_products') }}" enctype="multipart/form-data" class="form-section">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label for="products_file">Select CSV File:</label>
                 <input type="file" id="products_file" name="file" accept=".csv" class="form-input" required>
@@ -61,6 +62,7 @@ Bob Johnson,bob@example.com,0912345678,789 Pine Rd,Central
         </div>
 
         <form method="POST" action="{{ url_for('imports.import_customers') }}" enctype="multipart/form-data" class="form-section">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label for="customers_file">Select CSV File:</label>
                 <input type="file" id="customers_file" name="file" accept=".csv" class="form-input" required>
@@ -103,6 +105,7 @@ Mouse,50,100000,2026-04-02,Restock
         </div>
 
         <form method="POST" action="{{ url_for('imports.import_inventory') }}" enctype="multipart/form-data" class="form-section">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label for="inventory_file">Select CSV File:</label>
                 <input type="file" id="inventory_file" name="file" accept=".csv" class="form-input" required>

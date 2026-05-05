@@ -1,9 +1,50 @@
+"""
+routes/orders.py — Order CRUD and status state machine with FIFO inventory allocation.
+
+State machine:
+  draft       → no stock/accounting effect; editable and deletable
+  processing  → active sale: FIFO stock reserved; counted in revenue, COGS, customer debt
+  completed   → active sale: same as processing; processing→completed also picks up backorders
+  cancelled   → terminal state; cannot be reopened (create a new order instead)
+
+FIFO helpers (all run inside _inventory_lock for thread safety):
+  _deduct_inventory_fifo()              draft→active: consume lots oldest-first, write order_allocations
+  _restore_inventory_from_allocations() active→draft/cancelled: restore exactly the lots consumed
+  _activate_order_accounting()          deduct stock + increment customer.total_spent
+  _reverse_order_accounting()           restore stock + decrement customer.total_spent
+  _allocate_unreserved_stock()          processing→completed: allocate any outstanding backorder qty
+"""
+import threading
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from db import get_db, generate_code
 from auth import login_required
 from datetime import datetime
+from list_utils import (
+    PER_PAGE_OPTIONS,
+    pagination_window,
+    parse_list_controls,
+    resolve_pagination,
+    sort_direction_sql,
+)
 
 orders_bp = Blueprint('orders', __name__, url_prefix='/orders')
+
+# Serialises concurrent FIFO deductions/restorations across threads
+_inventory_lock = threading.Lock()
+
+# Draft orders are editable estimates and have no stock/accounting effect.
+# Processing and Completed orders are active sales: they reserve inventory, enter
+# revenue/COGS reports, and are reversed only by reopening to Draft or cancelling.
+ACCOUNTING_STATUSES = ('processing', 'completed')
+
+ORDER_SORTS = {
+    'date': 'o.order_date',
+    'code': 'o.order_code COLLATE NOCASE',
+    'customer': 'c.name COLLATE NOCASE',
+    'total': 'COALESCE(o.total_amount, 0)',
+    'status': 'o.order_status',
+    'payment': 'o.payment_status',
+}
 
 
 # ─────────────────────────────────────────────
@@ -48,7 +89,9 @@ def _deduct_inventory_fifo(cursor, order_id, items):
 
         # Get lots ordered by intake date (oldest first)
         cursor.execute('''
-            SELECT id, remaining_quantity, COALESCE(cost_price, 0) as cost_price
+            SELECT id, quantity, remaining_quantity,
+                   COALESCE(cost_price, 0) as cost_price,
+                   COALESCE(shipping_cost, 0) as shipping_cost
             FROM inventory
             WHERE product_id = ? AND remaining_quantity > 0
             ORDER BY intake_date ASC, id ASC
@@ -60,6 +103,9 @@ def _deduct_inventory_fifo(cursor, order_id, items):
             if needed <= 0:
                 break
             take = min(needed, lot['remaining_quantity'])
+            # Amortise per-lot shipping cost into per-unit cost for COGS accuracy
+            lot_qty = lot['quantity'] if lot['quantity'] and lot['quantity'] > 0 else 1
+            effective_cost = lot['cost_price'] + lot['shipping_cost'] / lot_qty
             cursor.execute(
                 'UPDATE inventory SET remaining_quantity = remaining_quantity - ? WHERE id = ?',
                 (take, lot['id'])
@@ -68,7 +114,7 @@ def _deduct_inventory_fifo(cursor, order_id, items):
                 INSERT INTO order_allocations
                     (order_id, inventory_lot_id, product_id, quantity_allocated, cost_price_at_sale)
                 VALUES (?, ?, ?, ?, ?)
-            ''', (order_id, lot['id'], product_id, take, lot['cost_price']))
+            ''', (order_id, lot['id'], product_id, take, effective_cost))
             allocated += take
             needed    -= take
 
@@ -106,6 +152,59 @@ def _restore_inventory_from_allocations(cursor, order_id):
     cursor.execute('DELETE FROM order_allocations WHERE order_id = ?', (order_id,))
 
 
+def _items_for_fifo(cursor, order_id):
+    cursor.execute('''
+        SELECT product_id, quantity
+        FROM order_items WHERE order_id = ?
+    ''', (order_id,))
+    return [{'product_id': r['product_id'], 'quantity': r['quantity']}
+            for r in cursor.fetchall()]
+
+
+def _unallocated_items_for_fifo(cursor, order_id):
+    cursor.execute('''
+        SELECT oi.product_id,
+               oi.quantity - COALESCE(SUM(oa.quantity_allocated), 0) AS quantity
+        FROM order_items oi
+        LEFT JOIN order_allocations oa
+          ON oa.order_id = oi.order_id
+         AND oa.product_id = oi.product_id
+        WHERE oi.order_id = ?
+        GROUP BY oi.id, oi.product_id, oi.quantity
+        HAVING quantity > 0
+    ''', (order_id,))
+    return [{'product_id': r['product_id'], 'quantity': r['quantity']}
+            for r in cursor.fetchall()]
+
+
+def _activate_order_accounting(cursor, order_id):
+    """Deduct stock and add customer total_spent for a Draft -> active sale."""
+    warnings = _deduct_inventory_fifo(cursor, order_id, _items_for_fifo(cursor, order_id))
+    cursor.execute('SELECT total_amount FROM orders WHERE id = ?', (order_id,))
+    total = cursor.fetchone()['total_amount'] or 0
+    cursor.execute(
+        'UPDATE customers SET total_spent = total_spent + ? '
+        'WHERE id = (SELECT customer_id FROM orders WHERE id = ?)',
+        (total, order_id))
+    return warnings
+
+
+def _allocate_unreserved_stock(cursor, order_id):
+    """Reserve any quantities that were unavailable when an order entered Processing."""
+    return _deduct_inventory_fifo(cursor, order_id, _unallocated_items_for_fifo(cursor, order_id))
+
+
+def _reverse_order_accounting(cursor, order_id):
+    """Restore stock and remove customer total_spent for an active sale -> Draft/Cancelled."""
+    _restore_inventory_from_allocations(cursor, order_id)
+    cursor.execute('SELECT total_amount, customer_id FROM orders WHERE id = ?', (order_id,))
+    o = cursor.fetchone()
+    if o:
+        cursor.execute(
+            'UPDATE customers SET total_spent = MAX(0, total_spent - ?) WHERE id = ?',
+            (o['total_amount'], o['customer_id']))
+
+
 # ─────────────────────────────────────────────
 #  LIST
 # ─────────────────────────────────────────────
@@ -117,11 +216,28 @@ def orders_list():
     try:
         cursor = db.cursor()
 
-        page       = request.args.get('page', 1, type=int)
-        per_page   = 50
-        offset     = (page - 1) * per_page
+        controls = parse_list_controls(
+            request.args,
+            ORDER_SORTS,
+            default_sort='date',
+            default_direction='desc',
+            default_per_page=25,
+        )
         status_filter = request.args.get('status', '')
         search     = request.args.get('search', '').strip()
+        sort = controls['sort']
+        direction = controls['direction']
+        per_page = controls['per_page']
+
+        count_query = 'SELECT COUNT(*) as count FROM orders o JOIN customers c ON o.customer_id = c.id WHERE 1=1'
+        count_params = []
+        if status_filter:
+            count_query  += ' AND o.order_status = ?';  count_params.append(status_filter)
+        if search:
+            count_query  += ' AND (o.order_code LIKE ? OR c.name LIKE ? OR c.customer_code LIKE ?)';  count_params.extend([f'%{search}%', f'%{search}%', f'%{search}%'])
+        cursor.execute(count_query, count_params)
+        total = cursor.fetchone()['count']
+        page, total_pages, offset = resolve_pagination(controls['page'], per_page, total)
 
         query = '''
             SELECT o.id, o.order_code, o.order_date, o.order_status, o.payment_status,
@@ -135,28 +251,31 @@ def orders_list():
             query  += ' AND o.order_status = ?'
             params.append(status_filter)
         if search:
-            query  += ' AND (o.order_code LIKE ? OR c.name LIKE ?)'
-            params.extend([f'%{search}%', f'%{search}%'])
-        query  += ' ORDER BY o.order_date DESC LIMIT ? OFFSET ?'
+            query  += ' AND (o.order_code LIKE ? OR c.name LIKE ? OR c.customer_code LIKE ?)'
+            params.extend([f'%{search}%', f'%{search}%', f'%{search}%'])
+        order_expr = ORDER_SORTS[sort]
+        query  += f' ORDER BY {order_expr} {sort_direction_sql(direction)}, o.id DESC LIMIT ? OFFSET ?'
         params.extend([per_page, offset])
         cursor.execute(query, params)
         orders = cursor.fetchall()
 
-        count_query = 'SELECT COUNT(*) as count FROM orders o JOIN customers c ON o.customer_id = c.id WHERE 1=1'
-        count_params = []
-        if status_filter:
-            count_query  += ' AND o.order_status = ?';  count_params.append(status_filter)
-        if search:
-            count_query  += ' AND (o.order_code LIKE ? OR c.name LIKE ?)';  count_params.extend([f'%{search}%', f'%{search}%'])
-        cursor.execute(count_query, count_params)
-        total       = cursor.fetchone()['count']
-        total_pages = (total + per_page - 1) // per_page
+        pagination_params = {
+            'status': status_filter,
+            'search': search,
+            'sort': sort,
+            'direction': direction,
+            'per_page': per_page,
+        }
 
         if request.headers.get('HX-Request'):
             return render_template('partials/orders_table.html', orders=orders, page=page, total_pages=total_pages)
 
         return render_template('orders.html', orders=orders, page=page, total_pages=total_pages,
-                               status_filter=status_filter, search=search)
+                               total=total, per_page=per_page, per_page_options=PER_PAGE_OPTIONS,
+                               page_numbers=pagination_window(page, total_pages),
+                               pagination_params=pagination_params,
+                               status_filter=status_filter, search=search,
+                               sort=sort, direction=direction)
     finally:
         db.close()
 
@@ -173,7 +292,15 @@ def new_order():
         cursor = db.cursor()
         cursor.execute('SELECT id, customer_code, name FROM customers WHERE is_active = 1 ORDER BY name')
         customers = cursor.fetchall()
-        cursor.execute('SELECT id, product_code, name, sale_price FROM products WHERE is_active = 1 ORDER BY name')
+        cursor.execute('''
+            SELECT p.id, p.product_code, p.name, p.sale_price,
+                COALESCE(SUM(i.remaining_quantity), 0) AS current_stock
+            FROM products p
+            LEFT JOIN inventory i ON p.id = i.product_id
+            WHERE p.is_active = 1
+            GROUP BY p.id
+            ORDER BY p.name
+        ''')
         products = cursor.fetchall()
         today = datetime.now().strftime('%Y-%m-%d')
         return render_template('order_form.html', customers=customers, products=products,
@@ -228,6 +355,12 @@ def create_order():
                 item['line_total'] = item['quantity'] * item['unit_price'] * (1 - item['discount_percent'] / 100)
 
             subtotal = sum(item['line_total'] for item in items)
+            if discount_amount > subtotal:
+                flash(
+                    f'Discount (₫{discount_amount:,.0f}) cannot exceed order subtotal (₫{subtotal:,.0f})',
+                    'error'
+                )
+                return redirect(url_for('orders.new_order'))
             # total_amount = what the customer owes
             # Only add shipping when customer pays; seller-paid shipping is a cost, not customer revenue
             if shipping_paid_by == 'customer':
@@ -242,7 +375,6 @@ def create_order():
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (order_code, customer_id, order_date, discount_amount, shipping_fee,
                   shipping_paid_by, subtotal, total_amount, notes))
-            db.commit()
 
             cursor.execute('SELECT last_insert_rowid() as id')
             order_id = cursor.fetchone()['id']
@@ -349,15 +481,23 @@ def edit_order(id):
             flash('Order not found', 'error')
             return redirect(url_for('orders.orders_list'))
 
-        # Allow editing for draft and processing orders
-        if order['order_status'] not in ('draft', 'processing'):
-            flash('Only Draft or Processing orders can be edited. Use "Reopen to Draft" for completed orders.', 'warning')
+        # Only Draft can be edited because Processing/Completed already affect stock and accounting.
+        if order['order_status'] != 'draft':
+            flash('Only Draft orders can be edited. Reopen to Draft first to reverse stock and accounting.', 'warning')
             return redirect(url_for('orders.order_detail', id=id))
 
         cursor.execute('SELECT id, customer_code, name FROM customers WHERE is_active = 1 ORDER BY name')
         customers = cursor.fetchall()
 
-        cursor.execute('SELECT id, product_code, name, sale_price FROM products WHERE is_active = 1 ORDER BY name')
+        cursor.execute('''
+            SELECT p.id, p.product_code, p.name, p.sale_price,
+                COALESCE(SUM(i.remaining_quantity), 0) AS current_stock
+            FROM products p
+            LEFT JOIN inventory i ON p.id = i.product_id
+            WHERE p.is_active = 1
+            GROUP BY p.id
+            ORDER BY p.name
+        ''')
         products = cursor.fetchall()
 
         cursor.execute('''
@@ -389,8 +529,8 @@ def update_order(id):
         if not row:
             flash('Order not found', 'error')
             return redirect(url_for('orders.orders_list'))
-        if row['order_status'] not in ('draft', 'processing'):
-            flash('Only Draft or Processing orders can be edited. Use "Reopen to Draft" for completed orders.', 'warning')
+        if row['order_status'] != 'draft':
+            flash('Only Draft orders can be edited. Reopen to Draft first to reverse stock and accounting.', 'warning')
             return redirect(url_for('orders.order_detail', id=id))
 
         customer_id      = request.form.get('customer_id', type=int)
@@ -426,6 +566,12 @@ def update_order(id):
                 item['line_total'] = item['quantity'] * item['unit_price'] * (1 - item['discount_percent'] / 100)
 
             subtotal = sum(item['line_total'] for item in items)
+            if discount_amount > subtotal:
+                flash(
+                    f'Discount (₫{discount_amount:,.0f}) cannot exceed order subtotal (₫{subtotal:,.0f})',
+                    'error'
+                )
+                return redirect(url_for('orders.edit_order', id=id))
             if shipping_paid_by == 'customer':
                 total_amount = subtotal - discount_amount + shipping_fee
             else:
@@ -462,6 +608,41 @@ def update_order(id):
 
 
 # ─────────────────────────────────────────────
+#  DELETE ORDER (draft only)
+# ─────────────────────────────────────────────
+
+@orders_bp.route('/<int:id>/delete', methods=['POST'])
+@login_required
+def delete_order(id):
+    db = get_db()
+    try:
+        cursor = db.cursor()
+        cursor.execute('SELECT order_status, order_code FROM orders WHERE id = ?', (id,))
+        order = cursor.fetchone()
+        if not order:
+            flash('Order not found', 'error')
+            return redirect(url_for('orders.orders_list'))
+
+        if order['order_status'] != 'draft':
+            flash('Only Draft orders can be deleted. Reopen to Draft or cancel the order instead.', 'warning')
+            return redirect(url_for('orders.order_detail', id=id))
+
+        try:
+            cursor.execute('DELETE FROM payments WHERE order_id = ?', (id,))
+            cursor.execute('DELETE FROM order_items WHERE order_id = ?', (id,))
+            cursor.execute('DELETE FROM orders WHERE id = ?', (id,))
+            db.commit()
+            flash(f'Order "{order["order_code"]}" deleted successfully', 'success')
+            return redirect(url_for('orders.orders_list'))
+        except Exception as e:
+            db.rollback()
+            flash(f'Error deleting order: {str(e)}', 'error')
+            return redirect(url_for('orders.order_detail', id=id))
+    finally:
+        db.close()
+
+
+# ─────────────────────────────────────────────
 #  STATUS CHANGE  (with inventory logic)
 # ─────────────────────────────────────────────
 
@@ -491,47 +672,46 @@ def update_order_status(id):
             flash('Cancelled orders cannot be reopened. Please create a new order.', 'error')
             return redirect(url_for('orders.order_detail', id=id))
 
+        status_labels = {'draft': 'Draft', 'processing': 'Processing',
+                         'completed': 'Completed', 'cancelled': 'Cancelled'}
         try:
-            # ── Completing an order → deduct inventory ──────────────────────────
-            if new_status == 'completed' and current_status != 'completed':
-                cursor.execute('''
-                    SELECT product_id, quantity
-                    FROM order_items WHERE order_id = ?
-                ''', (id,))
-                order_items = [{'product_id': r['product_id'], 'quantity': r['quantity']}
-                               for r in cursor.fetchall()]
+            warnings = []
 
-                warnings = _deduct_inventory_fifo(cursor, id, order_items)
-                for w in warnings:
-                    flash(f'Low stock warning: {w}', 'warning')
+            # Draft -> Processing/Completed activates the sale: reserve stock and enter accounting.
+            if current_status not in ACCOUNTING_STATUSES and new_status in ACCOUNTING_STATUSES:
+                with _inventory_lock:
+                    warnings = _activate_order_accounting(cursor, id)
+                    cursor.execute('UPDATE orders SET order_status = ? WHERE id = ?', (new_status, id))
+                    db.commit()
 
-                # Update customer total_spent
-                cursor.execute('SELECT total_amount FROM orders WHERE id = ?', (id,))
-                total = cursor.fetchone()['total_amount'] or 0
-                cursor.execute('UPDATE customers SET total_spent = total_spent + ? WHERE id = (SELECT customer_id FROM orders WHERE id = ?)', (total, id))
+            # Processing/Completed -> Draft/Cancelled reverses stock and accounting.
+            elif current_status in ACCOUNTING_STATUSES and new_status not in ACCOUNTING_STATUSES:
+                with _inventory_lock:
+                    _reverse_order_accounting(cursor, id)
+                    cursor.execute('UPDATE orders SET order_status = ? WHERE id = ?', (new_status, id))
+                    db.commit()
 
-            # ── Reopening a completed order → restore inventory ─────────────────
-            if current_status == 'completed' and new_status in ('draft', 'processing', 'cancelled'):
-                _restore_inventory_from_allocations(cursor, id)
+            # Processing -> Completed may pick up stock that arrived after the order was accepted.
+            elif current_status == 'processing' and new_status == 'completed':
+                with _inventory_lock:
+                    warnings = _allocate_unreserved_stock(cursor, id)
+                    cursor.execute('UPDATE orders SET order_status = ? WHERE id = ?', (new_status, id))
+                    db.commit()
 
-                # Reverse customer total_spent
-                cursor.execute('SELECT total_amount, customer_id FROM orders WHERE id = ?', (id,))
-                o = cursor.fetchone()
-                if o:
-                    cursor.execute('UPDATE customers SET total_spent = MAX(0, total_spent - ?) WHERE id = ?',
-                                   (o['total_amount'], o['customer_id']))
+            # Other active -> active moves or Draft -> Cancelled only change the label.
+            else:
+                cursor.execute('UPDATE orders SET order_status = ? WHERE id = ?', (new_status, id))
+                db.commit()
 
-            cursor.execute('UPDATE orders SET order_status = ? WHERE id = ?', (new_status, id))
-            db.commit()
-
-            status_labels = {
-                'draft': 'Draft', 'processing': 'Processing',
-                'completed': 'Completed', 'cancelled': 'Cancelled'
-            }
+            for w in warnings:
+                flash(f'Low stock warning: {w}', 'warning')
             flash(f'Order status changed to {status_labels.get(new_status, new_status)}', 'success')
 
         except Exception as e:
-            db.rollback()
+            try:
+                db.rollback()
+            except Exception:
+                pass
             flash(f'Error updating status: {str(e)}', 'error')
 
         return redirect(url_for('orders.order_detail', id=id))
@@ -558,29 +738,34 @@ def add_payment(id):
 
         cursor = db.cursor()
         try:
-            cursor.execute('SELECT total_amount FROM orders WHERE id = ?', (id,))
+            cursor.execute('SELECT total_amount, order_status FROM orders WHERE id = ?', (id,))
             order = cursor.fetchone()
             if not order:
                 flash('Order not found', 'error')
                 return redirect(url_for('orders.orders_list'))
+            if order['order_status'] not in ACCOUNTING_STATUSES:
+                flash('Payments can only be recorded on Processing or Completed orders.', 'warning')
+                return redirect(url_for('orders.order_detail', id=id))
+
+            cursor.execute(
+                'SELECT COALESCE(SUM(amount), 0) FROM payments WHERE order_id = ?', (id,))
+            already_paid = cursor.fetchone()[0] or 0
+            order_total  = order['total_amount'] or 0
+            if amount + already_paid > order_total:
+                flash(
+                    f'Payment (₫{amount:,.0f}) would bring total paid to '
+                    f'₫{amount + already_paid:,.0f}, exceeding order total '
+                    f'(₫{order_total:,.0f})',
+                    'error'
+                )
+                return redirect(url_for('orders.order_detail', id=id))
 
             cursor.execute('''
                 INSERT INTO payments (order_id, amount, payment_method, notes)
                 VALUES (?, ?, ?, ?)
             ''', (id, amount, payment_method, notes))
 
-            cursor.execute('SELECT COALESCE(SUM(amount), 0) as total_paid FROM payments WHERE order_id = ?', (id,))
-            total_paid = cursor.fetchone()['total_paid']
-
-            order_total = order['total_amount']
-            if total_paid >= order_total:
-                payment_status = 'fully_paid'
-            elif total_paid > 0:
-                payment_status = 'partially_paid'
-            else:
-                payment_status = 'not_paid'
-
-            cursor.execute('UPDATE orders SET payment_status = ? WHERE id = ?', (payment_status, id))
+            _recalc_payment_status(cursor, id)
             db.commit()
             flash('Payment added successfully', 'success')
 
@@ -594,21 +779,16 @@ def add_payment(id):
 
 
 def _recalc_payment_status(cursor, order_id):
-    """Recalculate and update payment_status for an order based on total payments."""
-    cursor.execute('SELECT total_amount FROM orders WHERE id = ?', (order_id,))
-    order = cursor.fetchone()
-    if not order:
-        return
-    cursor.execute('SELECT COALESCE(SUM(amount), 0) as total_paid FROM payments WHERE order_id = ?', (order_id,))
-    total_paid = cursor.fetchone()['total_paid']
-    order_total = order['total_amount']
-    if total_paid >= order_total:
-        payment_status = 'fully_paid'
-    elif total_paid > 0:
-        payment_status = 'partially_paid'
-    else:
-        payment_status = 'not_paid'
-    cursor.execute('UPDATE orders SET payment_status = ? WHERE id = ?', (payment_status, order_id))
+    """Recalculate and write payment_status in a single atomic SQL statement."""
+    cursor.execute('''
+        UPDATE orders SET payment_status = CASE
+            WHEN (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE order_id = ?) >= total_amount
+                THEN 'fully_paid'
+            WHEN (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE order_id = ?) > 0
+                THEN 'partially_paid'
+            ELSE 'not_paid'
+        END WHERE id = ?
+    ''', (order_id, order_id, order_id))
 
 
 # ─────────────────────────────────────────────

@@ -1,48 +1,137 @@
-<table class="table">
-    <thead>
-        <tr>
-            <th>Product</th>
-            <th>Code</th>
-            <th>Qty (In)</th>
-            <th>Remaining</th>
-            <th>Cost/Unit</th>
-            <th>Whse. Shipping</th>
-            <th>Intake Date</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for lot in lots %}
-            <tr {% if lot['remaining_quantity'] < 0 %}style="background:#fff3cd;"{% endif %}>
-                <td>{{ lot['product_name'] }}</td>
-                <td><code>{{ lot['product_code'] }}</code></td>
-                <td>
-                    {{ lot['quantity']|number }}
-                    {% if lot['quantity'] < 0 %}
-                        <span title="Backorder / pre-order" style="color:#856404; font-size:0.8em;">⚠ backorder</span>
-                    {% endif %}
-                </td>
-                <td>
-                    <span {% if lot['remaining_quantity'] < 0 %}style="color:#856404; font-weight:bold;"{% endif %}>
-                        {{ lot['remaining_quantity']|number }}
-                    </span>
-                </td>
-                <td>
-                    {{ lot['cost_price']|vnd }}
-                    {% if lot['currency'] and lot['currency'] != 'VND' and display_currency == 'VND' %}
-                        <span class="text-muted" style="font-size:0.8em;">({{ lot['currency'] }})</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if lot['shipping_cost'] and lot['shipping_cost'] > 0 %}
-                        {{ lot['shipping_cost']|vnd }}
-                    {% else %}
-                        <span class="text-muted">—</span>
-                    {% endif %}
-                </td>
-                <td>{{ lot['intake_date'][:10] if lot['intake_date'] else '—' }}</td>
-            </tr>
-        {% else %}
-            <tr><td colspan="7" class="text-muted" style="text-align:center;">No inventory lots found.</td></tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="inventory-product-list">
+    {% for product in products %}
+        <section class="inventory-product-card inventory-status-{{ product.stock_status }}">
+            <div class="inventory-product-header">
+                <div class="inventory-product-title">
+                    <strong>{{ product.product_name }}</strong>
+                    <code>{{ product.product_code }}</code>
+                </div>
+                <span class="inventory-status-badge inventory-status-badge-{{ product.stock_status }}">
+                    {{ product.stock_status_label }}
+                </span>
+            </div>
+
+            <div class="inventory-product-metrics">
+                <div>
+                    <span>Available</span>
+                    <strong>{{ product.available_quantity|number }}</strong>
+                </div>
+                <div>
+                    <span>Backorder</span>
+                    <strong>{{ product.backorder_quantity|number }}</strong>
+                </div>
+                <div>
+                    <span>Min</span>
+                    <strong>{{ product.min_stock_level|number }}</strong>
+                </div>
+                <div>
+                    <span>Value</span>
+                    <strong>{{ product.stock_value|vnd }}</strong>
+                </div>
+            </div>
+
+            <details class="inventory-lot-details">
+                <summary>
+                    <span>{{ product.open_lot_count|number }} active lot{% if product.open_lot_count != 1 %}s{% endif %}</span>
+                    <span class="text-muted">view lot costs, dates, and write-offs</span>
+                </summary>
+
+                {% if product.lots %}
+                    <div class="table-wrapper inventory-lot-table-wrap">
+                        <table class="table mobile-card-table inventory-lot-table">
+                            <thead>
+                                <tr>
+                                    <th>Qty (In)</th>
+                                    <th>Remaining</th>
+                                    <th>Cost/Unit</th>
+                                    <th>Whse. Shipping</th>
+                                    <th>Intake Date</th>
+                                    <th>Notes</th>
+                                    {% if is_admin %}
+                                        <th>Adjustment</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for lot in product.lots %}
+                                    <tr {% if lot.remaining_quantity < 0 %}class="inventory-backorder-row"{% endif %}>
+                                        <td data-label="Qty In">
+                                            {{ lot.quantity|number }}
+                                            {% if lot.quantity < 0 %}
+                                                <span class="inventory-inline-note">backorder</span>
+                                            {% endif %}
+                                        </td>
+                                        <td data-label="Remaining">
+                                            <strong {% if lot.remaining_quantity < 0 %}class="inventory-negative-qty"{% endif %}>
+                                                {{ lot.remaining_quantity|number }}
+                                            </strong>
+                                        </td>
+                                        <td data-label="Cost/Unit">
+                                            {{ lot.cost_price|vnd }}
+                                            {% if lot.currency and lot.currency != 'VND' and display_currency == 'VND' %}
+                                                <span class="text-muted">({{ lot.currency }})</span>
+                                            {% endif %}
+                                        </td>
+                                        <td data-label="Whse. Shipping">
+                                            {% if lot.shipping_cost and lot.shipping_cost > 0 %}
+                                                {{ lot.shipping_cost|vnd }}
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td data-label="Intake Date">{{ lot.intake_date[:10] if lot.intake_date else '-' }}</td>
+                                        <td data-label="Notes">{{ lot.notes or '-' }}</td>
+                                        {% if is_admin %}
+                                            <td data-label="Adjustment">
+                                                {% if lot.remaining_quantity > 0 %}
+                                                    <form method="POST"
+                                                          action="{{ url_for('inventory.write_off_lot', lot_id=lot.id) }}"
+                                                          class="inventory-writeoff-form">
+                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                        <input type="number"
+                                                               name="quantity"
+                                                               class="form-input"
+                                                               min="1"
+                                                               max="{{ lot.remaining_quantity }}"
+                                                               step="1"
+                                                               value="1"
+                                                               aria-label="Write-off quantity">
+                                                        <select name="reason" class="form-input" aria-label="Write-off reason">
+                                                            <option value="damaged_unsellable">Damaged / Unsellable</option>
+                                                            <option value="lost">Lost</option>
+                                                            <option value="count_correction">Count Correction</option>
+                                                            <option value="sample_giveaway">Sample / Giveaway</option>
+                                                            <option value="other">Other</option>
+                                                        </select>
+                                                        <input type="text"
+                                                               name="notes"
+                                                               class="form-input"
+                                                               placeholder="Optional note"
+                                                               aria-label="Adjustment note">
+                                                        <button type="submit"
+                                                                class="btn btn-warning btn-sm"
+                                                                onclick="return confirm('Write off stock from this lot? This reduces available stock and records a write-off cost, but does not change sales revenue or order COGS.')">
+                                                            Write Off
+                                                        </button>
+                                                    </form>
+                                                {% else %}
+                                                    <span class="text-muted">No stock</span>
+                                                {% endif %}
+                                            </td>
+                                        {% endif %}
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted inventory-no-lots">No active inventory lots for this product.</p>
+                {% endif %}
+            </details>
+        </section>
+    {% else %}
+        <div class="empty-state">
+            <p>No products match this inventory view.</p>
+        </div>
+    {% endfor %}
+</div>

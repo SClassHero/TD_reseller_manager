@@ -1,4 +1,4 @@
-<table class="table">
+<table class="table mobile-card-table">
     <thead>
         <tr>
             <th>Code</th>
@@ -6,37 +6,39 @@
             <th>Category</th>
             <th>Stock</th>
             <th>Sale Price</th>
-            <th>Actions</th>
+            {% if is_admin %}<th>Actions</th>{% endif %}
         </tr>
     </thead>
     <tbody>
         {% for product in products %}
             <tr>
-                <td><strong>{{ product.code }}</strong></td>
-                <td>{{ product.name }}</td>
-                <td>{{ product.category.name if product.category else '-' }}</td>
-                <td>
+                <td data-label="Code"><strong>{{ product.product_code }}</strong></td>
+                <td data-label="Name">{{ product.name }}</td>
+                <td data-label="Category">{{ product.category_name or '-' }}</td>
+                <td data-label="Stock">
                     {% if product.stock < product.min_stock_level %}
                         <span style="color: var(--danger); font-weight: bold;">{{ product.stock|number }}</span>
                     {% else %}
                         {{ product.stock|number }}
                     {% endif %}
                 </td>
-                <td>{{ product.sale_price|vnd }}</td>
-                <td>
-                    <div class="action-buttons">
-                        <button class="btn btn-sm btn-outline"
-                                hx-get="{{ url_for('products.edit_product', id=product.id) }}"
-                                hx-target="#modal-container">
-                            Edit
-                        </button>
-                        <button class="btn btn-sm btn-danger"
-                                hx-post="{{ url_for('products.delete_product', id=product.id) }}"
-                                hx-confirm="Delete this product?">
-                            Delete
-                        </button>
-                    </div>
-                </td>
+                <td data-label="Sale Price">{{ product.sale_price|vnd }}</td>
+                {% if is_admin %}
+                    <td data-label="Actions">
+                        <div class="action-buttons">
+                            <button class="btn btn-sm btn-outline"
+                                    hx-get="{{ url_for('products.edit_product', id=product.id) }}"
+                                    hx-target="#modal-container">
+                                Edit
+                            </button>
+                            <button class="btn btn-sm btn-danger"
+                                    hx-post="{{ url_for('products.delete_product', id=product.id) }}"
+                                    hx-confirm="Delete this product?">
+                                Delete
+                            </button>
+                        </div>
+                    </td>
+                {% endif %}
             </tr>
         {% endfor %}
     </tbody>

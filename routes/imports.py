@@ -1,9 +1,21 @@
+"""
+routes/imports.py — Bulk CSV import for customers and inventory intake lots.
+
+Customers CSV: customer_code, name, email, phone, address, region (customer_code must be unique)
+Inventory CSV: product_code, quantity, cost_price, shipping_cost, currency, intake_date, notes
+
+Duplicate customer_code values are skipped with a warning; partial imports succeed.
+USD intake rows are converted to VND using the current settings.vnd_usd_rate at import time.
+"""
+import re
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from db import get_db, generate_code
 from auth import login_required
 import csv
 import io
 from datetime import datetime
+
+_EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
 
 imports_bp = Blueprint('imports', __name__, url_prefix='/import')
 
@@ -155,6 +167,11 @@ def import_customers():
 
                 if not name:
                     errors.append(f"Row {row_num}: Customer name is required")
+                    error_count += 1
+                    continue
+
+                if email and not _EMAIL_RE.match(email):
+                    errors.append(f"Row {row_num}: Invalid email format: {email!r}")
                     error_count += 1
                     continue
 

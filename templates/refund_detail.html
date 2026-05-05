@@ -95,7 +95,7 @@
     <div class="card-body">
         {% if items %}
             <div class="table-wrapper">
-                <table class="table">
+                <table class="table mobile-card-table">
                     <thead>
                         <tr>
                             <th>Product</th>
@@ -142,6 +142,7 @@
                     ✏ Edit Refund
                 </a>
                 <form method="POST" action="{{ url_for('refunds.delete_refund', id=refund['id']) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-danger"
                             data-code="{{ refund['refund_code'] }}"
                             data-amount="{{ refund['amount'] | int }}"

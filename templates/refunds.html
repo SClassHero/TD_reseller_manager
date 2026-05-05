@@ -5,25 +5,60 @@
 {% block content %}
 <div class="page-header">
     <h1>Refunds</h1>
-    <a href="{{ url_for('refunds.new_refund') }}" class="btn btn-primary">
-        + New Refund
-    </a>
+    {% if is_admin %}
+        <a href="{{ url_for('refunds.new_refund') }}" class="btn btn-primary">
+            + New Refund
+        </a>
+    {% endif %}
 </div>
 
-<!-- Search Bar -->
-<div class="filter-bar">
-    <input type="text"
-           placeholder="Search refunds..."
-           class="search-input"
-           hx-get="{{ url_for('refunds.refunds_list') }}"
-           hx-trigger="input changed delay:300ms"
-           hx-target="#refunds-table"
-           hx-swap="innerHTML"
-           name="search"
-           value="{{ search or '' }}">
-</div>
+<form class="filter-bar list-controls" method="GET" action="{{ url_for('refunds.refunds_list') }}">
+    <div class="list-control-group search-control">
+        <label for="refund-search">Search</label>
+        <input id="refund-search"
+               type="search"
+               name="search"
+               placeholder="Refund code, order code, or customer"
+               class="search-input"
+               value="{{ search or '' }}">
+    </div>
 
-<!-- Refunds Table -->
+    <div class="list-control-group">
+        <label for="refund-sort">Sort</label>
+        <select id="refund-sort" class="filter-select" name="sort">
+            <option value="date" {% if sort == 'date' %}selected{% endif %}>Refund date</option>
+            <option value="code" {% if sort == 'code' %}selected{% endif %}>Refund code</option>
+            <option value="order" {% if sort == 'order' %}selected{% endif %}>Order code</option>
+            <option value="customer" {% if sort == 'customer' %}selected{% endif %}>Customer</option>
+            <option value="amount" {% if sort == 'amount' %}selected{% endif %}>Amount</option>
+        </select>
+    </div>
+
+    <div class="list-control-group">
+        <label for="refund-direction">Direction</label>
+        <select id="refund-direction" class="filter-select" name="direction">
+            <option value="desc" {% if direction == 'desc' %}selected{% endif %}>High to low</option>
+            <option value="asc" {% if direction == 'asc' %}selected{% endif %}>Low to high</option>
+        </select>
+    </div>
+
+    <div class="list-control-group">
+        <label for="refund-per-page">Rows</label>
+        <select id="refund-per-page" class="filter-select" name="per_page">
+            {% for option in per_page_options %}
+                <option value="{{ option }}" {% if per_page == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="list-control-actions">
+        <button class="btn btn-secondary" type="submit">Apply</button>
+        {% if search or sort != 'date' or direction != 'desc' or per_page != 25 %}
+            <a class="btn btn-outline" href="{{ url_for('refunds.refunds_list') }}">Reset</a>
+        {% endif %}
+    </div>
+</form>
+
 <div class="card">
     <div class="card-body">
         {% if refunds %}
@@ -32,37 +67,13 @@
                     {% include 'partials/refunds_table.html' %}
                 </div>
             </div>
-
-            <!-- Pagination -->
-            {% if total_pages > 1 %}
-                <div class="pagination">
-                    {% if page > 1 %}
-                        <a href="{{ url_for('refunds.refunds_list', page=page - 1, search=search) }}"
-                           hx-get="{{ url_for('refunds.refunds_list', page=page - 1, search=search) }}"
-                           hx-target="#refunds-table"
-                           hx-swap="innerHTML"
-                           class="btn btn-outline btn-sm">
-                            Previous
-                        </a>
-                    {% endif %}
-
-                    <span class="pagination-info">
-                        Page {{ page }} of {{ total_pages }}
-                    </span>
-
-                    {% if page < total_pages %}
-                        <a href="{{ url_for('refunds.refunds_list', page=page + 1, search=search) }}"
-                           hx-get="{{ url_for('refunds.refunds_list', page=page + 1, search=search) }}"
-                           hx-target="#refunds-table"
-                           hx-swap="innerHTML"
-                           class="btn btn-outline btn-sm">
-                            Next
-                        </a>
-                    {% endif %}
-                </div>
-            {% endif %}
+            {% with endpoint='refunds.refunds_list' %}
+                {% include 'partials/list_pagination.html' %}
+            {% endwith %}
         {% else %}
-            <p class="text-muted">No refunds found.</p>
+            <div class="empty-state">
+                <p>No refunds found.</p>
+            </div>
         {% endif %}
     </div>
 </div>

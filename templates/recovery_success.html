@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Password Reset - Inventory Manager</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .code-display {
+            font-family: monospace;
+            font-size: 1.4rem;
+            letter-spacing: 0.12em;
+            background: #f3f4f6;
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            padding: 18px;
+            text-align: center;
+            margin: 20px 0;
+            color: #111827;
+            word-break: break-all;
+        }
+        .warn-box {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body class="login-page">
+    <div class="login-container" style="max-width:480px;">
+        <div class="login-card">
+            <h1 class="login-title" style="font-size:1.4rem;">Password Reset Successful</h1>
+
+            <div class="alert alert-success">Your password has been reset. You can now log in with your new password.</div>
+
+            <p style="font-weight:600; margin-bottom:6px;">Your new recovery code:</p>
+            <div class="code-display">{{ new_code }}</div>
+
+            <div class="warn-box">
+                <strong>Save this now.</strong> This code is shown only once and cannot be retrieved later.
+                Write it down or store it in a password manager — you will need it if you forget your password again.
+                The old code is no longer valid.
+            </div>
+
+            <a href="{{ url_for('login') }}" class="btn btn-primary btn-block">Continue to Login</a>
+        </div>
+    </div>
+</body>
+</html>

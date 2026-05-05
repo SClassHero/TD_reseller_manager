@@ -10,6 +10,7 @@
 <form method="POST"
       action="{% if refund %}{{ url_for('refunds.update_refund', id=refund['id']) }}{% else %}{{ url_for('refunds.create_refund') }}{% endif %}"
       class="card">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="card-body">
         <div class="form-grid">
 

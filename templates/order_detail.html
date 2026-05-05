@@ -87,7 +87,7 @@
     <div class="card-body">
         {% if items %}
             <div class="table-wrapper">
-                <table class="table">
+                <table class="table mobile-card-table">
                     <thead>
                         <tr>
                             <th>Product</th>
@@ -123,18 +123,18 @@
     </div>
 </div>
 
-<!-- Inventory Allocations (only shown when completed) -->
-{% if order['order_status'] == 'completed' and allocations %}
+<!-- Inventory Allocations (shown for active accounting statuses) -->
+{% if order['order_status'] in ('processing', 'completed') and allocations %}
 <div class="card">
     <div class="card-header">
         <h3>Inventory Deductions</h3>
     </div>
     <div class="card-body">
         <p style="font-size:0.875rem; color:var(--text-light); margin-bottom:1rem;">
-            Stock quantities deducted from inventory lots when this order was completed.
+            Stock quantities reserved from inventory lots when this order entered Processing or Completed status.
         </p>
         <div class="table-wrapper">
-            <table class="table">
+            <table class="table mobile-card-table">
                 <thead>
                     <tr><th>Product</th><th style="text-align:right;">Units Deducted</th></tr>
                 </thead>
@@ -158,14 +158,14 @@
     <div class="card-body">
         {% if payments %}
             <div class="table-wrapper">
-                <table class="table">
+                <table class="table mobile-card-table">
                     <thead>
                         <tr>
                             <th>Date</th>
                             <th>Method</th>
                             <th style="text-align:right;">Amount</th>
                             <th>Note</th>
-                            <th style="width:160px;">Actions</th>
+                            {% if is_admin %}<th style="width:160px;">Actions</th>{% endif %}
                         </tr>
                     </thead>
                     <tbody>
@@ -175,20 +175,23 @@
                             <td>{{ p['payment_method']|title }}</td>
                             <td style="text-align:right;">{{ p['amount']|vnd }}</td>
                             <td>{{ p['notes'] or '—' }}</td>
-                            <td>
-                                <button type="button" class="btn btn-outline btn-sm"
-                                        onclick="editPayment({{ p['id'] }}, {{ p['amount'] }}, '{{ p['payment_method'] }}', '{{ p['notes'] or '' }}')">
-                                    Edit
-                                </button>
-                                <form method="POST"
-                                      action="{{ url_for('orders.delete_payment', id=order['id'], payment_id=p['id']) }}"
-                                      style="display:inline;">
-                                    <button type="submit" class="btn btn-danger btn-sm"
-                                            onclick="return confirm('Delete this payment?')">
-                                        Delete
+                            {% if is_admin %}
+                                <td>
+                                    <button type="button" class="btn btn-outline btn-sm"
+                                            onclick="editPayment({{ p['id'] }}, {{ p['amount'] }}, '{{ p['payment_method'] }}', '{{ p['notes'] or '' }}')">
+                                        Edit
                                     </button>
-                                </form>
-                            </td>
+                                    <form method="POST"
+                                          action="{{ url_for('orders.delete_payment', id=order['id'], payment_id=p['id']) }}"
+                                          style="display:inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-danger btn-sm"
+                                                onclick="return confirm('Delete this payment?')">
+                                            Delete
+                                        </button>
+                                    </form>
+                                </td>
+                            {% endif %}
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -199,10 +202,11 @@
         {% endif %}
 
         <!-- Add/Edit Payment Form -->
-        {% if order['order_status'] not in ('cancelled',) %}
+        {% if is_admin and order['order_status'] in ('processing', 'completed') %}
         <div id="payment-form-section" style="margin-top:1.5rem; padding-top:1.5rem; border-top:1px solid var(--border);">
             <h4 id="payment-form-title" style="margin-bottom:1rem; font-size:0.95rem; color:var(--text-light);">Record Payment</h4>
             <form id="payment-form" method="POST" action="{{ url_for('orders.add_payment', id=order['id']) }}" class="form-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="form-group" style="flex:1; min-width:150px;">
                     <label>Amount (₫)</label>
                     <input type="number" name="amount" id="pmt-amount" class="form-input" min="1" step="1" required placeholder="0">
@@ -237,8 +241,9 @@
         <div class="button-group">
             <a href="{{ url_for('orders.orders_list') }}" class="btn btn-outline">← Back to Orders</a>
 
-            {# ── EDIT (draft or processing) ─────────────────────────────── #}
-            {% if order['order_status'] in ('draft', 'processing') %}
+            {% if is_admin %}
+            {# ── EDIT (draft only) ─────────────────────────────────────── #}
+            {% if order['order_status'] == 'draft' %}
                 <a href="{{ url_for('orders.edit_order', id=order['id']) }}" class="btn btn-primary">
                     ✏️ Edit Order
                 </a>
@@ -247,19 +252,26 @@
             {# ── WORKFLOW PROGRESSION ───────────────────────────────────── #}
             {% if order['order_status'] == 'draft' %}
                 <form method="POST" action="{{ url_for('orders.update_order_status', id=order['id']) }}" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="status" value="processing">
                     <button type="submit" class="btn btn-primary"
-                            onclick="return confirm('Mark this order as Processing?')">
+                            onclick="return confirm('Mark this order as Processing? Stock will be reserved and revenue/COGS will be counted.')">
                         Mark as Processing
                     </button>
                 </form>
             {% endif %}
 
             {% if order['order_status'] in ('draft', 'processing') %}
+                {% if order['order_status'] == 'draft' %}
+                    {% set complete_msg = 'Complete this order? Stock will be reserved and revenue/COGS will be counted.' %}
+                {% else %}
+                    {% set complete_msg = 'Complete this order? Stock and accounting are already active from Processing status.' %}
+                {% endif %}
                 <form method="POST" action="{{ url_for('orders.update_order_status', id=order['id']) }}" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="status" value="completed">
                     <button type="submit" class="btn btn-success"
-                            onclick="return confirm('Complete this order? Inventory will be deducted.')">
+                            onclick="return confirm('{{ complete_msg }}')">
                         ✔ Mark as Completed
                     </button>
                 </form>
@@ -267,12 +279,9 @@
 
             {# ── REOPEN (processing or completed) ───────────────────────── #}
             {% if order['order_status'] in ('processing', 'completed') %}
-                {% if order['order_status'] == 'completed' %}
-                    {% set reopen_msg = 'Reopen this order to Draft? Inventory deductions will be reversed.' %}
-                {% else %}
-                    {% set reopen_msg = 'Reopen this order to Draft?' %}
-                {% endif %}
+                {% set reopen_msg = 'Reopen this order to Draft? Stock reservations and revenue/COGS will be reversed.' %}
                 <form method="POST" action="{{ url_for('orders.update_order_status', id=order['id']) }}" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="status" value="draft">
                     <button type="submit" class="btn btn-warning"
                             onclick="return confirm('{{ reopen_msg }}')">
@@ -283,12 +292,13 @@
 
             {# ── CANCEL ─────────────────────────────────────────────────── #}
             {% if order['order_status'] != 'cancelled' %}
-                {% if order['order_status'] == 'completed' %}
-                    {% set cancel_msg = 'Cancel this order? Inventory will be restored. This cannot be undone.' %}
+                {% if order['order_status'] in ('processing', 'completed') %}
+                    {% set cancel_msg = 'Cancel this order? Stock reservations and revenue/COGS will be reversed. This cannot be undone.' %}
                 {% else %}
                     {% set cancel_msg = 'Cancel this order? This cannot be undone.' %}
                 {% endif %}
                 <form method="POST" action="{{ url_for('orders.update_order_status', id=order['id']) }}" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="status" value="cancelled">
                     <button type="submit" class="btn btn-danger"
                             onclick="return confirm('{{ cancel_msg }}')">
@@ -296,11 +306,23 @@
                     </button>
                 </form>
             {% endif %}
+
+            {# ── DELETE (draft only) ────────────────────────────────────── #}
+            {% if order['order_status'] == 'draft' %}
+                <form method="POST" action="{{ url_for('orders.delete_order', id=order['id']) }}" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger"
+                            onclick="return confirm('Delete this Draft order? Draft orders have no stock or accounting effect.')">
+                        Delete Draft
+                    </button>
+                </form>
+            {% endif %}
+            {% endif %}
         </div>
 
         {% if order['order_status'] == 'processing' %}
         <p class="text-muted" style="margin-top:1rem; font-size:0.85rem;">
-            Inventory is <strong>not yet deducted</strong> in Processing state — it is only deducted when the order is Completed.
+            Processing orders reserve stock and count in revenue/COGS. Reopen to Draft or Cancel to reverse the stock and accounting entries.
         </p>
         {% endif %}
         {% if order['order_status'] == 'cancelled' %}

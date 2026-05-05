@@ -23,6 +23,53 @@
     </div>
 </div>
 
+{% if recent_adjustments %}
+<!-- Recent Stock Adjustments -->
+<div class="card">
+    <div class="card-header">
+        <h2>Recent Stock Adjustments</h2>
+    </div>
+    <div class="card-body">
+        <p class="text-muted">
+            Write-offs are for damaged, unsellable, lost, sample, or count-correction stock.
+            They reduce inventory and are reported separately from sales COGS.
+        </p>
+        <div class="table-wrapper">
+            <table class="table mobile-card-table">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Date</th>
+                        <th>Product</th>
+                        <th>Qty</th>
+                        <th>Reason</th>
+                        <th>Write-off Cost</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for adjustment in recent_adjustments %}
+                        <tr>
+                            <td><code>{{ adjustment['adjustment_code'] }}</code></td>
+                            <td>{{ adjustment['adjustment_date'][:10] if adjustment['adjustment_date'] else '-' }}</td>
+                            <td>
+                                {{ adjustment['product_name'] }}
+                                <br>
+                                <small class="text-muted">{{ adjustment['product_code'] }}</small>
+                            </td>
+                            <td>{{ adjustment['quantity_delta']|number }}</td>
+                            <td>{{ adjustment['reason'].replace('_', ' ')|title if adjustment['reason'] else '-' }}</td>
+                            <td>{{ adjustment['total_cost']|vnd }}</td>
+                            <td>{{ adjustment['notes'] or '-' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Low Stock Alerts -->
 <div class="card">
     <div class="card-header">
@@ -31,7 +78,7 @@
     <div class="card-body">
         {% if low_stock %}
             <div class="table-wrapper">
-                <table class="table">
+                <table class="table mobile-card-table">
                     <thead>
                         <tr>
                             <th>Product Code</th>
@@ -70,7 +117,7 @@
     <div class="card-body">
         {% if dead_stock %}
             <div class="table-wrapper">
-                <table class="table">
+                <table class="table mobile-card-table">
                     <thead>
                         <tr>
                             <th>Product Code</th>
@@ -107,7 +154,7 @@
     <div class="card-body">
         {% if by_category %}
             <div class="table-wrapper">
-                <table class="table">
+                <table class="table mobile-card-table">
                     <thead>
                         <tr>
                             <th>Category</th>
@@ -142,7 +189,7 @@
     <div class="card-body">
         {% if all_products %}
             <div class="table-wrapper">
-                <table class="table">
+                <table class="table mobile-card-table">
                     <thead>
                         <tr>
                             <th>Product Code</th>
