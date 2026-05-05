@@ -4,29 +4,29 @@
 
 {% block content %}
 <div class="page-header">
-    <h1>Products</h1>
+    <h1>{{ _('Products') }}</h1>
     {% if is_admin %}
         <button class="btn btn-primary" hx-get="{{ url_for('products.new_product') }}" hx-target="#modal-container">
-            + Add Product
+            + {{ _('Add Product') }}
         </button>
     {% endif %}
 </div>
 
 <form class="filter-bar list-controls" method="GET" action="{{ url_for('products.products_list') }}">
     <div class="list-control-group search-control">
-        <label for="product-search">Search</label>
+        <label for="product-search">{{ _('Search') }}</label>
         <input id="product-search"
                type="search"
                name="search"
-               placeholder="Name, code, or barcode"
+               placeholder="{{ _('Name, code, or barcode') }}"
                class="search-input"
                value="{{ search or '' }}">
     </div>
 
     <div class="list-control-group">
-        <label for="product-category">Category</label>
+        <label for="product-category">{{ _('Category') }}</label>
         <select id="product-category" class="filter-select" name="category_id">
-            <option value="">All categories</option>
+            <option value="">{{ _('All categories') }}</option>
             {% for category in categories %}
                 <option value="{{ category.id }}" {% if category_filter == category.id %}selected{% endif %}>
                     {{ category.name }}
@@ -36,27 +36,27 @@
     </div>
 
     <div class="list-control-group">
-        <label for="product-sort">Sort</label>
+        <label for="product-sort">{{ _('Sort') }}</label>
         <select id="product-sort" class="filter-select" name="sort">
-            <option value="name" {% if sort == 'name' %}selected{% endif %}>Name</option>
-            <option value="code" {% if sort == 'code' %}selected{% endif %}>Code</option>
-            <option value="category" {% if sort == 'category' %}selected{% endif %}>Category</option>
-            <option value="stock" {% if sort == 'stock' %}selected{% endif %}>Stock</option>
-            <option value="sale_price" {% if sort == 'sale_price' %}selected{% endif %}>Sale price</option>
-            <option value="created" {% if sort == 'created' %}selected{% endif %}>Newest added</option>
+            <option value="name" {% if sort == 'name' %}selected{% endif %}>{{ _('Name') }}</option>
+            <option value="code" {% if sort == 'code' %}selected{% endif %}>{{ _('Code') }}</option>
+            <option value="category" {% if sort == 'category' %}selected{% endif %}>{{ _('Category') }}</option>
+            <option value="stock" {% if sort == 'stock' %}selected{% endif %}>{{ _('Stock') }}</option>
+            <option value="sale_price" {% if sort == 'sale_price' %}selected{% endif %}>{{ _('Sale price') }}</option>
+            <option value="created" {% if sort == 'created' %}selected{% endif %}>{{ _('Newest added') }}</option>
         </select>
     </div>
 
     <div class="list-control-group">
-        <label for="product-direction">Direction</label>
+        <label for="product-direction">{{ _('Direction') }}</label>
         <select id="product-direction" class="filter-select" name="direction">
-            <option value="asc" {% if direction == 'asc' %}selected{% endif %}>Low to high</option>
-            <option value="desc" {% if direction == 'desc' %}selected{% endif %}>High to low</option>
+            <option value="asc" {% if direction == 'asc' %}selected{% endif %}>{{ _('Low to high') }}</option>
+            <option value="desc" {% if direction == 'desc' %}selected{% endif %}>{{ _('High to low') }}</option>
         </select>
     </div>
 
     <div class="list-control-group">
-        <label for="product-per-page">Rows</label>
+        <label for="product-per-page">{{ _('Rows') }}</label>
         <select id="product-per-page" class="filter-select" name="per_page">
             {% for option in per_page_options %}
                 <option value="{{ option }}" {% if per_page == option %}selected{% endif %}>{{ option }}</option>
@@ -65,9 +65,9 @@
     </div>
 
     <div class="list-control-actions">
-        <button class="btn btn-secondary" type="submit">Apply</button>
+        <button class="btn btn-secondary" type="submit">{{ _('Apply') }}</button>
         {% if search or category_filter or sort != 'name' or direction != 'asc' or per_page != 25 %}
-            <a class="btn btn-outline" href="{{ url_for('products.products_list') }}">Reset</a>
+            <a class="btn btn-outline" href="{{ url_for('products.products_list') }}">{{ _('Reset') }}</a>
         {% endif %}
     </div>
 </form>
@@ -85,7 +85,7 @@
             {% endwith %}
         {% else %}
             <div class="empty-state">
-                <p>No products found.</p>
+                <p>{{ _('No products found.') }}</p>
             </div>
         {% endif %}
     </div>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ ui_language }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,51 +12,51 @@
         <!-- Sidebar Navigation -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <h2>Inventory</h2>
+                <h2>{{ _('Inventory') }}</h2>
                 <button class="hamburger-close" onclick="document.getElementById('sidebar').classList.remove('active')">×</button>
             </div>
             <nav class="sidebar-nav">
                 {% if is_admin %}
                     <a href="{{ url_for('dashboard.dashboard') }}" class="nav-link {% if current_path.startswith('/dashboard') %}active{% endif %}">
-                        Dashboard
+                        {{ _('Dashboard') }}
                     </a>
                 {% endif %}
                 <a href="{{ url_for('products.products_list') }}" class="nav-link {% if current_path.startswith('/products') %}active{% endif %}">
-                    Products
+                    {{ _('Products') }}
                 </a>
                 {% if is_admin %}
                     <a href="{{ url_for('categories.categories_list') }}" class="nav-link {% if current_path.startswith('/categories') %}active{% endif %}">
-                        Categories
+                        {{ _('Categories') }}
                     </a>
                 {% endif %}
                 <a href="{{ url_for('customers.customers_list') }}" class="nav-link {% if current_path.startswith('/customers') %}active{% endif %}">
-                    Customers
+                    {{ _('Customers') }}
                 </a>
                 <a href="{{ url_for('inventory.inventory_list') }}" class="nav-link {% if current_path.startswith('/inventory') %}active{% endif %}">
-                    Inventory
+                    {{ _('Inventory') }}
                 </a>
                 <a href="{{ url_for('orders.orders_list') }}" class="nav-link {% if current_path.startswith('/orders') %}active{% endif %}">
-                    Orders
+                    {{ _('Orders') }}
                 </a>
                 {% if is_admin %}
                     <a href="{{ url_for('returns.returns_list') }}" class="nav-link {% if current_path.startswith('/returns') %}active{% endif %}">
-                        Returns
+                        {{ _('Returns') }}
                     </a>
                     <a href="{{ url_for('refunds.refunds_list') }}" class="nav-link {% if current_path.startswith('/refunds') %}active{% endif %}">
-                        Refunds
+                        {{ _('Refunds') }}
                     </a>
                     <hr style="margin: 10px 0; border: none; border-top: 1px solid rgba(255,255,255,0.1);">
                     <a href="{{ url_for('reports.reports_index') }}" class="nav-link {% if current_path.startswith('/reports') %}active{% endif %}">
-                        Reports
+                        {{ _('Reports') }}
                     </a>
                     <a href="{{ url_for('imports.import_page') }}" class="nav-link {% if current_path.startswith('/import') %}active{% endif %}">
-                        Import
+                        {{ _('Import') }}
                     </a>
                     <a href="{{ url_for('exports.exports_index') }}" class="nav-link {% if current_path.startswith('/exports') %}active{% endif %}">
-                        Export
+                        {{ _('Export') }}
                     </a>
                     <a href="{{ url_for('settings.settings_page') }}" class="nav-link {% if current_path.startswith('/settings') %}active{% endif %}">
-                        Settings
+                        {{ _('Settings') }}
                     </a>
                 {% endif %}
             </nav>
@@ -72,17 +72,31 @@
                     </button>
                     <h1 class="app-title">
                         {% block header_title %}
-                            {{ self.title()|striptags|replace(' - Inventory Manager', '')|trim }}
+                            {{ _(self.title()|striptags|replace(' - Inventory Manager', '')|trim) }}
                         {% endblock %}
                     </h1>
                 </div>
                 <div class="header-right">
+                    <form method="POST" action="{{ url_for('switch_language') }}" class="currency-toggle-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit"
+                                class="currency-toggle-btn"
+                                title="{{ _('Switch UI language') }}">
+                            {% if ui_language == 'vi' %}
+                                <span class="currency-toggle-full">Tiếng Việt &rarr; English</span>
+                                <span class="currency-toggle-short">EN</span>
+                            {% else %}
+                                <span class="currency-toggle-full">English &rarr; Tiếng Việt</span>
+                                <span class="currency-toggle-short">VI</span>
+                            {% endif %}
+                        </button>
+                    </form>
                     <!-- Currency Toggle -->
                     <form method="POST" action="{{ url_for('switch_currency') }}" class="currency-toggle-form">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit"
                                 class="currency-toggle-btn"
-                                title="Switch display currency (rate: {{ vnd_usd_rate|number }} VND/USD)">
+                                title="{{ _('Switch display currency') }} (rate: {{ vnd_usd_rate|number }} VND/USD)">
                             {% if display_currency == 'VND' %}
                                 <span class="currency-toggle-full">&#8363; VND &rarr; $USD</span>
                                 <span class="currency-toggle-short">USD</span>
@@ -92,7 +106,7 @@
                             {% endif %}
                         </button>
                     </form>
-                    <a href="{{ url_for('logout') }}" class="logout-link">Logout</a>
+                    <a href="{{ url_for('logout') }}" class="logout-link">{{ _('Logout') }}</a>
                 </div>
             </header>
 

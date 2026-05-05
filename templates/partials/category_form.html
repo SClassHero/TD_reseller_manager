@@ -1,7 +1,7 @@
 <div class="modal active">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>{% if category %}Edit{% else %}Add{% endif %} Category</h3>
+            <h3>{% if category %}{{ _('Edit Category') }}{% else %}{{ _('Add Category') }}{% endif %}</h3>
             <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
         </div>
 
@@ -13,7 +13,7 @@
 
             <div class="modal-body">
                 <div class="form-group">
-                    <label for="name">Category Name *</label>
+                    <label for="name">{{ _('Category Name *') }}</label>
                     <input type="text"
                            id="name"
                            name="name"
@@ -23,7 +23,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="description">Description</label>
+                    <label for="description">{{ _('Description') }}</label>
                     <textarea id="description"
                               name="description"
                               class="form-input"
@@ -32,8 +32,8 @@
             </div>
 
             <div class="modal-footer">
-                <button type="button" class="btn btn-outline" onclick="this.closest('.modal').remove()">Cancel</button>
-                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="button" class="btn btn-outline" onclick="this.closest('.modal').remove()">{{ _('Cancel') }}</button>
+                <button type="submit" class="btn btn-primary">{{ _('Save') }}</button>
             </div>
         </form>
     </div>

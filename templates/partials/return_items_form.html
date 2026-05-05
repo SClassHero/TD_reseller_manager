@@ -1,7 +1,7 @@
 <!-- Step 2: Select Items to Return -->
 <div class="form-section">
-    <h3>Step 2: Select Items to Return</h3>
-    <p class="text-muted">From order <strong>{{ order['order_code'] }}</strong> ({{ order['customer_name'] }})</p>
+    <h3>{{ _('Step 2: Select Items to Return') }}</h3>
+    <p class="text-muted">{{ _('From order') }} <strong>{{ order['order_code'] }}</strong> ({{ order['customer_name'] }})</p>
 
     {% if items %}
         <div class="return-item-list">
@@ -18,7 +18,7 @@
                             <input type="checkbox"
                                    class="return-item-checkbox"
                                    data-item-index="{{ loop.index0 }}">
-                            <span>Return this item</span>
+                            <span>{{ _('Return this item') }}</span>
                         </label>
                         <div class="return-item-product">
                             <strong>{{ item['name'] }}</strong>
@@ -27,13 +27,13 @@
                     </div>
 
                     <div class="return-item-facts">
-                        <span>Ordered: <strong>{{ item['quantity']|number }}</strong></span>
-                        <span>Sale price: <strong>{{ item['unit_price']|vnd }}</strong></span>
+                        <span>{{ _('Ordered') }}: <strong>{{ item['quantity']|number }}</strong></span>
+                        <span>{{ _('Sale price') }}: <strong>{{ item['unit_price']|vnd }}</strong></span>
                     </div>
 
                     <div class="return-item-fields">
                         <label>
-                            <span>Return Qty</span>
+                            <span>{{ _('Return Qty') }}</span>
                             <input type="number"
                                    class="return-qty-input"
                                    value="{{ item['quantity'] }}"
@@ -42,7 +42,7 @@
                                    disabled>
                         </label>
                         <label>
-                            <span>Refund Amount</span>
+                            <span>{{ _('Refund Amount') }}</span>
                             <input type="number"
                                    class="refund-amount-input"
                                    value="{{ item['line_total'] }}"
@@ -58,11 +58,11 @@
                                    class="restock-checkbox"
                                    checked
                                    disabled>
-                            <span>Add sellable quantity back to inventory</span>
+                            <span>{{ _('Add sellable quantity back to inventory') }}</span>
                         </label>
                         <div class="return-restock-grid">
                             <label>
-                                <span>Sellable Qty</span>
+                                <span>{{ _('Sellable Qty') }}</span>
                                 <input type="number"
                                        class="restock-qty-input"
                                        value="{{ item['quantity'] }}"
@@ -72,19 +72,18 @@
                                        disabled>
                             </label>
                             <p class="field-help">
-                                Default: same as return qty. Lower it when only part of the returned item can be resold.
+                                {{ _('Default: same as return qty. Lower it when only part of the returned item can be resold.') }}
                             </p>
                         </div>
 
                         <details class="return-cost-details">
-                            <summary>Optional resale cost</summary>
+                            <summary>{{ _('Optional resale cost') }}</summary>
                             <p class="field-help">
-                                Most returns should stay 0. The original sale keeps its original COGS; these fields only
-                                value the new returned-goods lot or extra money spent to make it sellable.
+                                {{ _('Most returns should stay 0. The original sale keeps its original COGS; these fields only value the new returned-goods lot or extra money spent to make it sellable.') }}
                             </p>
                             <div class="return-item-fields">
                                 <label>
-                                    <span>Returned Item Value / Unit</span>
+                                    <span>{{ _('Returned Item Value / Unit') }}</span>
                                     <input type="number"
                                            class="restock-unit-cost-input"
                                            value="0"
@@ -93,7 +92,7 @@
                                            disabled>
                                 </label>
                                 <label>
-                                    <span>Extra Restock Cost</span>
+                                    <span>{{ _('Extra Restock Cost') }}</span>
                                     <input type="number"
                                            class="restock-shipping-cost-input"
                                            value="0"
@@ -103,7 +102,7 @@
                                 </label>
                             </div>
                             <p class="field-help">
-                                Extra cost means repair, cleaning, repackaging, or return shipping you paid.
+                                {{ _('Extra cost means repair, cleaning, repackaging, or return shipping you paid.') }}
                             </p>
                         </details>
                     </div>
@@ -243,6 +242,6 @@
         })();
         </script>
     {% else %}
-        <p class="text-muted">This order has no items or has already been fully returned.</p>
+        <p class="text-muted">{{ _('This order has no items or has already been fully returned.') }}</p>
     {% endif %}
 </div>

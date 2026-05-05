@@ -7,33 +7,33 @@
                     <code>{{ product.product_code }}</code>
                 </div>
                 <span class="inventory-status-badge inventory-status-badge-{{ product.stock_status }}">
-                    {{ product.stock_status_label }}
+                    {{ _(product.stock_status_label) }}
                 </span>
             </div>
 
             <div class="inventory-product-metrics">
                 <div>
-                    <span>Available</span>
+                    <span>{{ _('Available') }}</span>
                     <strong>{{ product.available_quantity|number }}</strong>
                 </div>
                 <div>
-                    <span>Backorder</span>
+                    <span>{{ _('Backorder') }}</span>
                     <strong>{{ product.backorder_quantity|number }}</strong>
                 </div>
                 <div>
-                    <span>Min</span>
+                    <span>{{ _('Min') }}</span>
                     <strong>{{ product.min_stock_level|number }}</strong>
                 </div>
                 <div>
-                    <span>Value</span>
+                    <span>{{ _('Value') }}</span>
                     <strong>{{ product.stock_value|vnd }}</strong>
                 </div>
             </div>
 
             <details class="inventory-lot-details">
                 <summary>
-                    <span>{{ product.open_lot_count|number }} active lot{% if product.open_lot_count != 1 %}s{% endif %}</span>
-                    <span class="text-muted">view lot costs, dates, and write-offs</span>
+                    <span>{{ product.open_lot_count|number }} {{ _('active lot') if product.open_lot_count == 1 else _('active lots') }}</span>
+                    <span class="text-muted">{{ _('view lot costs, dates, and write-offs') }}</span>
                 </summary>
 
                 {% if product.lots %}
@@ -41,48 +41,48 @@
                         <table class="table mobile-card-table inventory-lot-table">
                             <thead>
                                 <tr>
-                                    <th>Qty (In)</th>
-                                    <th>Remaining</th>
-                                    <th>Cost/Unit</th>
-                                    <th>Whse. Shipping</th>
-                                    <th>Intake Date</th>
-                                    <th>Notes</th>
+                                    <th>{{ _('Qty (In)') }}</th>
+                                    <th>{{ _('Remaining') }}</th>
+                                    <th>{{ _('Cost/Unit') }}</th>
+                                    <th>{{ _('Whse. Shipping') }}</th>
+                                    <th>{{ _('Intake Date') }}</th>
+                                    <th>{{ _('Notes') }}</th>
                                     {% if is_admin %}
-                                        <th>Adjustment</th>
+                                        <th>{{ _('Adjustment') }}</th>
                                     {% endif %}
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for lot in product.lots %}
                                     <tr {% if lot.remaining_quantity < 0 %}class="inventory-backorder-row"{% endif %}>
-                                        <td data-label="Qty In">
+                                        <td data-label="{{ _('Qty (In)') }}">
                                             {{ lot.quantity|number }}
                                             {% if lot.quantity < 0 %}
-                                                <span class="inventory-inline-note">backorder</span>
+                                                <span class="inventory-inline-note">{{ _('backorder') }}</span>
                                             {% endif %}
                                         </td>
-                                        <td data-label="Remaining">
+                                        <td data-label="{{ _('Remaining') }}">
                                             <strong {% if lot.remaining_quantity < 0 %}class="inventory-negative-qty"{% endif %}>
                                                 {{ lot.remaining_quantity|number }}
                                             </strong>
                                         </td>
-                                        <td data-label="Cost/Unit">
+                                        <td data-label="{{ _('Cost/Unit') }}">
                                             {{ lot.cost_price|vnd }}
                                             {% if lot.currency and lot.currency != 'VND' and display_currency == 'VND' %}
                                                 <span class="text-muted">({{ lot.currency }})</span>
                                             {% endif %}
                                         </td>
-                                        <td data-label="Whse. Shipping">
+                                        <td data-label="{{ _('Whse. Shipping') }}">
                                             {% if lot.shipping_cost and lot.shipping_cost > 0 %}
                                                 {{ lot.shipping_cost|vnd }}
                                             {% else %}
                                                 <span class="text-muted">-</span>
                                             {% endif %}
                                         </td>
-                                        <td data-label="Intake Date">{{ lot.intake_date[:10] if lot.intake_date else '-' }}</td>
-                                        <td data-label="Notes">{{ lot.notes or '-' }}</td>
+                                        <td data-label="{{ _('Intake Date') }}">{{ lot.intake_date[:10] if lot.intake_date else '-' }}</td>
+                                        <td data-label="{{ _('Notes') }}">{{ lot.notes or '-' }}</td>
                                         {% if is_admin %}
-                                            <td data-label="Adjustment">
+                                            <td data-label="{{ _('Adjustment') }}">
                                                 {% if lot.remaining_quantity > 0 %}
                                                     <form method="POST"
                                                           action="{{ url_for('inventory.write_off_lot', lot_id=lot.id) }}"
@@ -95,27 +95,27 @@
                                                                max="{{ lot.remaining_quantity }}"
                                                                step="1"
                                                                value="1"
-                                                               aria-label="Write-off quantity">
+                                                               aria-label="{{ _('Write-off quantity') }}">
                                                         <select name="reason" class="form-input" aria-label="Write-off reason">
-                                                            <option value="damaged_unsellable">Damaged / Unsellable</option>
-                                                            <option value="lost">Lost</option>
-                                                            <option value="count_correction">Count Correction</option>
-                                                            <option value="sample_giveaway">Sample / Giveaway</option>
-                                                            <option value="other">Other</option>
+                                                            <option value="damaged_unsellable">{{ _('Damaged / Unsellable') }}</option>
+                                                            <option value="lost">{{ _('Lost') }}</option>
+                                                            <option value="count_correction">{{ _('Count Correction') }}</option>
+                                                            <option value="sample_giveaway">{{ _('Sample / Giveaway') }}</option>
+                                                            <option value="other">{{ _('Other') }}</option>
                                                         </select>
                                                         <input type="text"
                                                                name="notes"
                                                                class="form-input"
-                                                               placeholder="Optional note"
-                                                               aria-label="Adjustment note">
+                                                               placeholder="{{ _('Optional note') }}"
+                                                               aria-label="{{ _('Adjustment note') }}">
                                                         <button type="submit"
                                                                 class="btn btn-warning btn-sm"
-                                                                onclick="return confirm('Write off stock from this lot? This reduces available stock and records a write-off cost, but does not change sales revenue or order COGS.')">
-                                                            Write Off
+                                                                onclick="return confirm('{{ _('Write off stock from this lot? This reduces available stock and records a write-off cost, but does not change sales revenue or order COGS.') }}')">
+                                                            {{ _('Write Off') }}
                                                         </button>
                                                     </form>
                                                 {% else %}
-                                                    <span class="text-muted">No stock</span>
+                                                    <span class="text-muted">{{ _('No stock') }}</span>
                                                 {% endif %}
                                             </td>
                                         {% endif %}
@@ -125,13 +125,13 @@
                         </table>
                     </div>
                 {% else %}
-                    <p class="text-muted inventory-no-lots">No active inventory lots for this product.</p>
+                    <p class="text-muted inventory-no-lots">{{ _('No active inventory lots for this product.') }}</p>
                 {% endif %}
             </details>
         </section>
     {% else %}
         <div class="empty-state">
-            <p>No products match this inventory view.</p>
+            <p>{{ _('No products match this inventory view.') }}</p>
         </div>
     {% endfor %}
 </div>

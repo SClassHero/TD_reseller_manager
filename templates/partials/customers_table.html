@@ -1,51 +1,51 @@
 <table class="table mobile-card-table">
     <thead>
         <tr>
-            <th>Code</th>
-            <th>Name</th>
-            <th>Phone</th>
+            <th>{{ _('Code') }}</th>
+            <th>{{ _('Name') }}</th>
+            <th>{{ _('Phone') }}</th>
             {% if is_admin %}
-                <th>Total Spent</th>
-                <th>Outstanding Debt</th>
+                <th>{{ _('Total Spent') }}</th>
+                <th>{{ _('Outstanding Debt') }}</th>
             {% endif %}
-            <th>Actions</th>
+            <th>{{ _('Actions') }}</th>
         </tr>
     </thead>
     <tbody>
         {% for customer in customers %}
             <tr>
-                <td data-label="Code"><strong>{{ customer.code }}</strong></td>
-                <td data-label="Name"><a href="{{ url_for('customers.customer_detail', id=customer.id) }}">{{ customer.name }}</a></td>
-                <td data-label="Phone">{{ customer.phone or '-' }}</td>
+                <td data-label="{{ _('Code') }}"><strong>{{ customer.code }}</strong></td>
+                <td data-label="{{ _('Name') }}"><a href="{{ url_for('customers.customer_detail', id=customer.id) }}">{{ customer.name }}</a></td>
+                <td data-label="{{ _('Phone') }}">{{ customer.phone or '-' }}</td>
                 {% if is_admin %}
-                    <td data-label="Total Spent">{{ customer.total_spent|vnd }}</td>
-                    <td data-label="Outstanding Debt">
+                    <td data-label="{{ _('Total Spent') }}">{{ customer.total_spent|vnd }}</td>
+                    <td data-label="{{ _('Outstanding Debt') }}">
                         {% if customer.outstanding_debt > 0 %}
                             <span style="color: var(--danger); font-weight: bold;">{{ customer.outstanding_debt|vnd }}</span>
                         {% elif customer.outstanding_debt < 0 %}
                             <span style="color: var(--success); font-size:0.85em;" title="Overpaid / credit">
-                                +{{ (customer.outstanding_debt * -1)|vnd }} credit
+                                +{{ (customer.outstanding_debt * -1)|vnd }} {{ _('credit') }}
                             </span>
                         {% else %}
                             <span class="text-muted">-</span>
                         {% endif %}
                     </td>
                 {% endif %}
-                <td data-label="Actions">
+                <td data-label="{{ _('Actions') }}">
                     <div class="action-buttons">
                         <a href="{{ url_for('customers.customer_detail', id=customer.id) }}" class="btn btn-sm btn-outline">
-                            View
+                            {{ _('View') }}
                         </a>
                         {% if is_admin %}
                             <button class="btn btn-sm btn-outline"
                                     hx-get="{{ url_for('customers.edit_customer', id=customer.id) }}"
                                     hx-target="#modal-container">
-                                Edit
+                                {{ _('Edit') }}
                             </button>
                             <button class="btn btn-sm btn-danger"
                                     hx-post="{{ url_for('customers.delete_customer', id=customer.id) }}"
-                                    hx-confirm="Delete this customer?">
-                                Delete
+                                    hx-confirm="{{ _('Delete this customer?') }}">
+                                {{ _('Delete') }}
                             </button>
                         {% endif %}
                     </div>

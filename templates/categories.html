@@ -4,44 +4,44 @@
 
 {% block content %}
 <div class="page-header">
-    <h1>Categories</h1>
+    <h1>{{ _('Categories') }}</h1>
     {% if is_admin %}
         <button class="btn btn-primary" hx-get="{{ url_for('categories.new_category') }}" hx-target="#modal-container">
-            + Add Category
+            + {{ _('Add Category') }}
         </button>
     {% endif %}
 </div>
 
 <form class="filter-bar list-controls" method="GET" action="{{ url_for('categories.categories_list') }}">
     <div class="list-control-group search-control">
-        <label for="category-search">Search</label>
+        <label for="category-search">{{ _('Search') }}</label>
         <input id="category-search"
                type="search"
                name="search"
-               placeholder="Name or description"
+               placeholder="{{ _('Name or description') }}"
                class="search-input"
                value="{{ search or '' }}">
     </div>
 
     <div class="list-control-group">
-        <label for="category-sort">Sort</label>
+        <label for="category-sort">{{ _('Sort') }}</label>
         <select id="category-sort" class="filter-select" name="sort">
-            <option value="name" {% if sort == 'name' %}selected{% endif %}>Name</option>
-            <option value="product_count" {% if sort == 'product_count' %}selected{% endif %}>Product count</option>
-            <option value="created" {% if sort == 'created' %}selected{% endif %}>Date added</option>
+            <option value="name" {% if sort == 'name' %}selected{% endif %}>{{ _('Name') }}</option>
+            <option value="product_count" {% if sort == 'product_count' %}selected{% endif %}>{{ _('Product count') }}</option>
+            <option value="created" {% if sort == 'created' %}selected{% endif %}>{{ _('Date added') }}</option>
         </select>
     </div>
 
     <div class="list-control-group">
-        <label for="category-direction">Direction</label>
+        <label for="category-direction">{{ _('Direction') }}</label>
         <select id="category-direction" class="filter-select" name="direction">
-            <option value="asc" {% if direction == 'asc' %}selected{% endif %}>Low to high</option>
-            <option value="desc" {% if direction == 'desc' %}selected{% endif %}>High to low</option>
+            <option value="asc" {% if direction == 'asc' %}selected{% endif %}>{{ _('Low to high') }}</option>
+            <option value="desc" {% if direction == 'desc' %}selected{% endif %}>{{ _('High to low') }}</option>
         </select>
     </div>
 
     <div class="list-control-group">
-        <label for="category-per-page">Rows</label>
+        <label for="category-per-page">{{ _('Rows') }}</label>
         <select id="category-per-page" class="filter-select" name="per_page">
             {% for option in per_page_options %}
                 <option value="{{ option }}" {% if per_page == option %}selected{% endif %}>{{ option }}</option>
@@ -50,9 +50,9 @@
     </div>
 
     <div class="list-control-actions">
-        <button class="btn btn-secondary" type="submit">Apply</button>
+        <button class="btn btn-secondary" type="submit">{{ _('Apply') }}</button>
         {% if search or sort != 'name' or direction != 'asc' or per_page != 25 %}
-            <a class="btn btn-outline" href="{{ url_for('categories.categories_list') }}">Reset</a>
+            <a class="btn btn-outline" href="{{ url_for('categories.categories_list') }}">{{ _('Reset') }}</a>
         {% endif %}
     </div>
 </form>
@@ -70,7 +70,7 @@
             {% endwith %}
         {% else %}
             <div class="empty-state">
-                <p>No categories found.</p>
+                <p>{{ _('No categories found.') }}</p>
             </div>
         {% endif %}
     </div>

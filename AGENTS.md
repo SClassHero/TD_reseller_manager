@@ -11,7 +11,7 @@ A self-hosted inventory management web app for a small Vietnamese e-commerce bus
 Built with Flask + HTMX + SQLite. Runs on a Windows PC or NAS (accessible over the local network).
 
 **Default URL:** `http://localhost:5000`
-**App version:** `0.5.0` (see `version.py` and `CHANGELOG.md`)
+**App version:** `0.6.0` (see `version.py` and `CHANGELOG.md`)
 **Database schema version:** `5` (see `db.SCHEMA_VERSION` and `SCHEMA_CHANGELOG.md`)
 **Default admin login:** username `admin`, password `admin123` (stored as a Werkzeug password hash)
 **Primary currency:** VND (Vietnamese Dong), with a live USD toggle
@@ -37,14 +37,14 @@ openpyxl is only needed for XLSX export; CSV export works without it.
 ## How to Test
 
 ```bash
-python test_app.py                    # 396 tests: app CRUD, role access, mobile markup, exports, CSRF
+python test_app.py                    # 425 tests: app CRUD, role access, mobile markup, UI language, exports, CSRF
 python test_backup.py                 # 16 tests: backup/restore/reset/deployment smoke tests
 python test_real_world_scenarios.py   # 130 tests: golden-ledger FIFO/accounting
 python test_edge_cases.py             # 78 tests: cancellation, guards, cumulative validation
 python test_edge_cases_2.py           # 53 tests: partial returns, overpayment, recovery code
 ```
 
-Total: 673 tests, all passing. Auto-backup is suppressed under Flask `TESTING` mode.
+Total: 702 tests, all passing. Auto-backup is suppressed under Flask `TESTING` mode.
 
 ---
 
@@ -67,6 +67,7 @@ inventory_app_v5/
 ├── app.py                  # App factory, filters, context processors, currency switch
 ├── auth.py                 # login/admin decorators and limited-role guard
 ├── list_utils.py           # Shared list search/sort/pagination helpers
+├── i18n.py                 # Display-only English/Vietnamese UI translations
 ├── db.py                   # Schema, init_db(), generate_code(), generate_product_code()
 ├── version.py              # App release version metadata
 ├── CHANGELOG.md            # App release history
@@ -96,7 +97,7 @@ inventory_app_v5/
 │   ├── returns.py
 │   └── settings.py         # Exchange rate, passwords/accounts, backup, DB reset
 └── templates/
-    ├── base.html            # Sidebar nav, currency toggle button, flash messages
+    ├── base.html            # Sidebar nav, currency/language toggles, flash messages
     ├── partials/            # HTMX modal partials (loaded via hx-get, submitted via regular POST)
     │   ├── customer_form.html
     │   ├── intake_form.html
@@ -318,6 +319,14 @@ Keep app versioning separate from `db.SCHEMA_VERSION`:
 
 ---
 
+## UI Language Support
+
+UI language is display-only and session-based. `i18n.py` exposes English/Vietnamese labels through the Jinja `_()` helper, and `/switch-language` toggles `session['ui_language']` between `en` and `vi`.
+
+Do not translate backend identifiers, database values, routes, status codes, accounting rules, or stored business data. Values such as `draft`, `processing`, `completed`, `cancelled`, `not_paid`, `partially_paid`, and `fully_paid` remain English internally and are translated only when rendered.
+
+---
+
 ## Template / HTMX Patterns
 
 **Modal partials** (`templates/partials/*.html`):
@@ -383,6 +392,7 @@ Keep app versioning separate from `db.SCHEMA_VERSION`:
 - **Returns** — linked to refunds optionally; sellable returned goods create new returned-goods intake lots at per-item restock quantity and optional resale/restock cost (0 by default), not restoration into original FIFO lots; missed restocks can be fixed from Return Detail
 - **Inventory adjustments/write-offs** — write off damaged, unsellable, lost, sample/giveaway, or count-correction stock from any positive inventory lot; returned-goods lots can be written off directly from Return Detail; write-offs are reported separately from sales COGS
 - **Currency toggle** — VND ↔ USD, session-based, rate from Settings
+- **UI language toggle** — English ↔ Vietnamese, session-based and display-only; backend values, schema, routes, and accounting logic stay English/unchanged
 - **Limited access account** — Settings-managed `limited` login can view Products, Inventory, Customers, and Orders; revenue/profit/admin pages and all write actions are blocked
 - **Customer debt** — computed live from DB, not from cached column
 - **Dashboard** — Net Revenue, COGS (FIFO), Seller Shipping, Gross Profit, Margin; period filter
@@ -401,7 +411,7 @@ Keep app versioning separate from `db.SCHEMA_VERSION`:
 - **Auto-backup** — weekly ZIP backup (DB + photos) triggered in `before_request`; configurable in Settings; suppressed under Flask `TESTING` mode
 - **Restore** — extract ZIP, replace DB, re-run `init_db()` for schema migration; safety pre-restore backup created automatically
 - **Password recovery code** — in-app 96-bit recovery code; Settings → generate; login page → "Forgot password?"
-- **Mobile responsive UI** — iPhone-width checks cover the header/currency toggle, stacked dashboard stat cards, Settings forms, and slide-out sidebar
+- **Mobile responsive UI** — iPhone-width checks cover the header/currency/language toggles, stacked dashboard stat cards, Settings forms, and slide-out sidebar
 - **NAS deployment** — `start_app.sh` for DSM Task Scheduler; USERGUIDE.md Section 15
 
 ---

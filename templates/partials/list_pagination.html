@@ -8,7 +8,7 @@
 
     <div class="list-footer">
         <div class="list-count">
-            Showing {{ start_item|number }}-{{ end_item|number }} of {{ total|number }}
+            {{ _('Showing') }} {{ start_item|number }}-{{ end_item|number }} {{ _('of') }} {{ total|number }}
         </div>
 
         {% if total_pages > 1 %}
@@ -16,7 +16,7 @@
                 {% if page > 1 %}
                     <a href="{{ base_url }}{{ query_prefix }}page={{ page - 1 }}"
                        class="btn btn-outline btn-sm">
-                        Previous
+                        {{ _('Previous') }}
                     </a>
                 {% endif %}
 
@@ -37,7 +37,7 @@
                 {% if page < total_pages %}
                     <a href="{{ base_url }}{{ query_prefix }}page={{ page + 1 }}"
                        class="btn btn-outline btn-sm">
-                        Next
+                        {{ _('Next') }}
                     </a>
                 {% endif %}
             </nav>

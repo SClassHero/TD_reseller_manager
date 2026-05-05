@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="page-header">
-    <h1>Create Return</h1>
+    <h1>{{ _('Create Return') }}</h1>
 </div>
 
 <form id="return-form" method="POST" action="{{ url_for('returns.create_return') }}" class="card">
@@ -12,15 +12,15 @@
     <div class="card-body">
         <!-- Step 1: Select Order -->
         <div class="form-section">
-            <h3>Step 1: Select Order</h3>
+            <h3>{{ _('Step 1: Select Order') }}</h3>
 
             <div class="form-group">
-                <label for="order_id">Order *</label>
+                <label for="order_id">{{ _('Order *') }}</label>
                 <select id="order_id"
                         name="order_id"
                         class="form-input"
                         required>
-                    <option value="">-- Select an Order --</option>
+                    <option value="">-- {{ _('Select an Order') }} --</option>
                     {% for order in orders %}
                         <option value="{{ order['id'] }}">
                             {{ order['order_code'] }} - {{ order['customer_name'] }}
@@ -36,23 +36,22 @@
 
         <!-- Return Reason -->
         <div class="form-section">
-            <h3>Return Details</h3>
+            <h3>{{ _('Return Details') }}</h3>
 
             <div class="alert alert-info" style="margin-bottom:1rem;">
-                <strong>Return accounting rule:</strong>
-                refunds reduce revenue, while the original sale keeps its FIFO COGS and any seller-paid shipping cost.
-                Each returned line defaults to restock the full return quantity as a new returned-goods intake lot,
-                valued at the restock/refurb cost entered per item. Uncheck restock or lower the restock quantity
-                when only part of the return is sellable.
+                <strong>{{ _('Return accounting rule:') }}</strong>
+                {{ _('refunds reduce revenue, while the original sale keeps its FIFO COGS and any seller-paid shipping cost.') }}
+                {{ _('Each returned line defaults to restock the full return quantity as a new returned-goods intake lot.') }}
+                {{ _('Uncheck restock or lower the restock quantity when only part of the return is sellable.') }}
             </div>
 
             <div class="form-group">
-                <label for="return_reason">Return Reason</label>
+                <label for="return_reason">{{ _('Return Reason') }}</label>
                 <textarea id="return_reason"
                           name="return_reason"
                           class="form-input"
                           rows="4"
-                          placeholder="Explain the reason for this return..."></textarea>
+                          placeholder="{{ _('Explain the reason for this return...') }}"></textarea>
             </div>
 
         </div>
@@ -61,8 +60,8 @@
     <!-- Form Actions -->
     <div class="card-body" style="border-top: 1px solid #e2e8f0; padding-top: 1.5em;">
         <div class="form-actions">
-            <a href="{{ url_for('returns.returns_list') }}" class="btn btn-outline">Cancel</a>
-            <button type="submit" class="btn btn-primary" id="submit-btn">Create Return</button>
+            <a href="{{ url_for('returns.returns_list') }}" class="btn btn-outline">{{ _('Cancel') }}</a>
+            <button type="submit" class="btn btn-primary" id="submit-btn">{{ _('Create Return') }}</button>
         </div>
     </div>
 </form>

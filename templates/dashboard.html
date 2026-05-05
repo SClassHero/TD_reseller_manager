@@ -4,26 +4,26 @@
 
 {% block content %}
 <div class="page-header">
-    <h1>Dashboard</h1>
+    <h1>{{ _('Dashboard') }}</h1>
 </div>
 
 <!-- Period Filter Tabs (plain links — no HTMX to avoid layout issues) -->
 <div class="filter-tabs">
     <a href="{{ url_for('dashboard.dashboard', period='today') }}"
-       class="filter-tab {% if period == 'today' %}active{% endif %}">Today</a>
+       class="filter-tab {% if period == 'today' %}active{% endif %}">{{ _('Today') }}</a>
     <a href="{{ url_for('dashboard.dashboard', period='this_week') }}"
-       class="filter-tab {% if period == 'this_week' %}active{% endif %}">This Week</a>
+       class="filter-tab {% if period == 'this_week' %}active{% endif %}">{{ _('This Week') }}</a>
     <a href="{{ url_for('dashboard.dashboard', period='this_month') }}"
-       class="filter-tab {% if period == 'this_month' %}active{% endif %}">This Month</a>
+       class="filter-tab {% if period == 'this_month' %}active{% endif %}">{{ _('This Month') }}</a>
     <a href="{{ url_for('dashboard.dashboard', period='this_quarter') }}"
-       class="filter-tab {% if period == 'this_quarter' %}active{% endif %}">This Quarter</a>
+       class="filter-tab {% if period == 'this_quarter' %}active{% endif %}">{{ _('This Quarter') }}</a>
     <a href="{{ url_for('dashboard.dashboard', period='this_year') }}"
-       class="filter-tab {% if period == 'this_year' %}active{% endif %}">This Year</a>
+       class="filter-tab {% if period == 'this_year' %}active{% endif %}">{{ _('This Year') }}</a>
     <a href="{{ url_for('dashboard.dashboard', period='all') }}"
-       class="filter-tab {% if period == 'all' %}active{% endif %}">All Time</a>
+       class="filter-tab {% if period == 'all' %}active{% endif %}">{{ _('All Time') }}</a>
     <a href="#"
        class="filter-tab {% if period == 'custom' %}active{% endif %}"
-       onclick="document.getElementById('custom-date-form').style.display='block'; return false;">Custom</a>
+       onclick="document.getElementById('custom-date-form').style.display='block'; return false;">{{ _('Custom') }}</a>
 </div>
 
 <!-- Custom Date Range Form -->
@@ -34,18 +34,18 @@
                 <input type="hidden" name="period" value="custom">
                 <div style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
                     <div class="form-group" style="margin-bottom: 0;">
-                        <label for="start_date">Start Date</label>
+                        <label for="start_date">{{ _('Start Date') }}</label>
                         <input type="date" id="start_date" name="start_date"
                                value="{{ start_date or '' }}" class="form-input" required>
                     </div>
                     <div class="form-group" style="margin-bottom: 0;">
-                        <label for="end_date">End Date</label>
+                        <label for="end_date">{{ _('End Date') }}</label>
                         <input type="date" id="end_date" name="end_date"
                                value="{{ end_date or '' }}" class="form-input" required>
                     </div>
-                    <button type="submit" class="btn btn-primary">Apply</button>
+                    <button type="submit" class="btn btn-primary">{{ _('Apply') }}</button>
                     <button type="button" class="btn btn-outline"
-                            onclick="document.getElementById('custom-date-form').style.display='none';">Cancel</button>
+                            onclick="document.getElementById('custom-date-form').style.display='none';">{{ _('Cancel') }}</button>
                 </div>
             </form>
         </div>
@@ -55,50 +55,50 @@
 <!-- Revenue & Profit Cards -->
 <div class="stats-grid revenue-stats-grid">
     <div class="stat-card" style="border-top-color: #16a34a;">
-        <div class="stat-label">Net Revenue</div>
+        <div class="stat-label">{{ _('Net Revenue') }}</div>
         <div class="stat-value" style="color: #16a34a; font-size: 1.4rem;">{{ period_data.total_revenue|vnd }}</div>
         <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 0.5rem;">
             {{ period_data.order_count|number }} order{{ 's' if period_data.order_count != 1 else '' }}
             {% if period_data.total_refunds > 0 %}
-                <br>Gross: {{ period_data.gross_revenue|vnd }}
-                <br>Refunds: -{{ period_data.total_refunds|vnd }}
+                <br>{{ _('Gross') }}: {{ period_data.gross_revenue|vnd }}
+                <br>{{ _('Refunds') }}: -{{ period_data.total_refunds|vnd }}
             {% endif %}
         </div>
     </div>
 
     <div class="stat-card" style="border-top-color: #dc2626;">
-        <div class="stat-label">Sales Costs</div>
+        <div class="stat-label">{{ _('Sales Costs') }}</div>
         <div class="stat-value" style="color: #dc2626; font-size: 1.4rem;">{{ period_data.total_costs|vnd }}</div>
         <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 0.5rem;">
             COGS: {{ period_data.total_cogs|vnd }}
             {% if period_data.seller_shipping > 0 %}
-                <br>Shipping (ours): {{ period_data.seller_shipping|vnd }}
+                <br>{{ _('Shipping (ours)') }}: {{ period_data.seller_shipping|vnd }}
             {% endif %}
             {% if period_data.inventory_adjustments > 0 %}
-                <br>Write-offs: {{ period_data.inventory_adjustments|vnd }}
+                <br>{{ _('Write-offs') }}: {{ period_data.inventory_adjustments|vnd }}
             {% endif %}
         </div>
     </div>
 
     <div class="stat-card" style="border-top-color: #2563eb;">
-        <div class="stat-label">Gross Profit</div>
+        <div class="stat-label">{{ _('Gross Profit') }}</div>
         <div class="stat-value" style="font-size: 1.4rem; color: {% if period_data.gross_profit >= 0 %}#16a34a{% else %}#dc2626{% endif %};">
             {{ period_data.gross_profit|vnd }}
         </div>
         <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 0.5rem;">
-            Net revenue minus sales costs
+            {{ _('Net revenue minus sales costs') }}
             {% if period_data.inventory_adjustments > 0 %}
-                <br>After write-offs: {{ period_data.adjusted_profit|vnd }}
+                <br>{{ _('After write-offs') }}: {{ period_data.adjusted_profit|vnd }}
             {% endif %}
         </div>
     </div>
 
     <div class="stat-card" style="border-top-color: #f59e0b;">
-        <div class="stat-label">Profit Margin</div>
+        <div class="stat-label">{{ _('Profit Margin') }}</div>
         <div class="stat-value" style="font-size: 1.4rem; color: {% if period_data.profit_margin >= 0 %}#16a34a{% else %}#dc2626{% endif %};">
             {{ "%.1f"|format(period_data.profit_margin) }}%
         </div>
-        <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 0.5rem;">Profit / net revenue</div>
+        <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 0.5rem;">{{ _('Profit / net revenue') }}</div>
     </div>
 </div>
 
@@ -143,15 +143,15 @@
         <div style="display: flex; gap: 2rem; justify-content: center; font-size: 0.8rem; color: var(--text-light);">
             <span style="display: flex; align-items: center; gap: 6px;">
                 <span style="display: inline-block; width: 12px; height: 12px; background: var(--primary); border-radius: 2px;"></span>
-                Revenue
+                {{ _('Revenue') }}
             </span>
             <span style="display: flex; align-items: center; gap: 6px;">
                 <span style="display: inline-block; width: 12px; height: 12px; background: #f87171; border-radius: 2px;"></span>
-                COGS
+                {{ _('COGS') }}
             </span>
         </div>
         {% else %}
-        <p class="text-muted">No revenue data available.</p>
+        <p class="text-muted">{{ _('No revenue data available.') }}</p>
         {% endif %}
     </div>
 </div>
@@ -159,23 +159,23 @@
 <!-- Operations Stats -->
 <div class="stats-grid">
     <div class="stat-card">
-        <div class="stat-label">Total Products</div>
+        <div class="stat-label">{{ _('Total Products') }}</div>
         <div class="stat-value">{{ total_products|number }}</div>
     </div>
     <div class="stat-card">
-        <div class="stat-label">Total Stock Units</div>
+        <div class="stat-label">{{ _('Total Stock Units') }}</div>
         <div class="stat-value">{{ total_stock|number }}</div>
     </div>
     <div class="stat-card">
-        <div class="stat-label">Total Customers</div>
+        <div class="stat-label">{{ _('Total Customers') }}</div>
         <div class="stat-value">{{ total_customers|number }}</div>
     </div>
     <div class="stat-card">
-        <div class="stat-label">Inventory Value</div>
+        <div class="stat-label">{{ _('Inventory Value') }}</div>
         <div class="stat-value" style="font-size: 1.3rem;">{{ inventory_value|vnd }}</div>
     </div>
     <div class="stat-card {% if pending_orders > 0 %}stat-card-alert{% endif %}">
-        <div class="stat-label">Processing Orders</div>
+        <div class="stat-label">{{ _('Processing Orders') }}</div>
         <div class="stat-value">{{ pending_orders|number }}</div>
         {% if pending_orders > 0 %}
         <div style="font-size:0.8rem; color:var(--text-light); margin-top:0.4rem;">

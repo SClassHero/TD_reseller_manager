@@ -2,6 +2,8 @@
 
 > For a micro-business that sources and resells goods via Facebook Marketplace,
 > personal pages, and direct customer orders.
+>
+> Vietnamese quick guide: `USERGUIDE.vi.md`
 
 ---
 
@@ -82,6 +84,14 @@ Do this once before recording any orders.
 | **Default Currency** | VND (the app stores everything in VND internally) |
 | **VND/USD Rate** | Current exchange rate — only affects USD display toggle |
 | **Password** | Change from `admin123` immediately |
+
+### 2.1a UI Language
+
+Use the top-header language button to switch between **English** and
+**Tiếng Việt** at any time. The language choice is stored in your browser
+session only. It changes UI labels and help text, but it does not change
+database values, order statuses, routes, accounting rules, exports, or stored
+business data.
 
 ### 2.2 Categories (`/categories/`)
 

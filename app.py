@@ -5,6 +5,7 @@ Responsibilities:
   - Persistent secret key (stored in .secret_key, never committed to VCS)
   - CSRF protection: session token checked on every POST except /login
   - Currency toggle: VND ↔ USD, session-based via POST /switch-currency
+  - UI language toggle: English ↔ Vietnamese, session-based via POST /switch-language
   - Auto-backup: fires in a background thread when the configured interval has elapsed
   - Password recovery: one-time recovery code set in Settings; code rotates on use
   - Blueprint registration for all feature modules
@@ -24,6 +25,7 @@ from flask import Flask, session, redirect, url_for, render_template, request, f
 from werkzeug.security import check_password_hash, generate_password_hash
 from db import init_db, get_db
 from auth import current_role, enforce_limited_access, is_admin
+from i18n import DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, normalize_language, translate
 from version import APP_VERSION
 
 _log = logging.getLogger(__name__)
@@ -274,11 +276,32 @@ def inject_app_version():
     return {'app_version': APP_VERSION}
 
 
+@app.context_processor
+def inject_i18n():
+    ui_language = normalize_language(session.get('ui_language', DEFAULT_LANGUAGE))
+
+    def _translate(text):
+        return translate(text, ui_language)
+
+    return {
+        '_': _translate,
+        'ui_language': ui_language,
+        'supported_languages': SUPPORTED_LANGUAGES,
+    }
+
+
 # Currency switch route
 @app.route('/switch-currency', methods=['POST'])
 def switch_currency():
     current = session.get('display_currency', getattr(g, 'default_currency', 'VND'))
     session['display_currency'] = 'USD' if current == 'VND' else 'VND'
+    return redirect(request.referrer or url_for('dashboard.dashboard'))
+
+
+@app.route('/switch-language', methods=['POST'])
+def switch_language():
+    current = normalize_language(session.get('ui_language', DEFAULT_LANGUAGE))
+    session['ui_language'] = 'vi' if current == 'en' else 'en'
     return redirect(request.referrer or url_for('dashboard.dashboard'))
 
 

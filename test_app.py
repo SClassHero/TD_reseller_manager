@@ -1336,6 +1336,54 @@ def run():
         r = c.get('/dashboard/')
         has(r, '₫', 'Dashboard shows VND after toggling back')
 
+        # ── 14c. UI Language Toggle ───────────────────────────────────────
+        section('UI Language Toggle')
+
+        r = post(c, '/switch-language', {})
+        r = c.get('/dashboard/?period=all')
+        has(r, 'Tổng quan', 'Vietnamese dashboard title renders after toggle')
+        has(r, 'Sản phẩm', 'Vietnamese nav/product label renders after toggle')
+        has(r, 'English', 'Language toggle offers switching back to English')
+        with c.session_transaction() as sess:
+            check(sess.get('ui_language') == 'vi', 'Vietnamese language choice is stored in session only')
+
+        for url, expected, label in [
+            ('/products/?search=EL0001&sort=code', 'Thêm sản phẩm', 'Products page translates actions and survives query refresh'),
+            ('/customers/', 'Thêm khách hàng', 'Customers page translates add action'),
+            ('/inventory/', 'Thêm nhập kho', 'Inventory page translates intake action'),
+            ('/orders/', 'Đơn hàng', 'Orders page translates page/list labels'),
+            ('/orders/new', 'Tạo đơn hàng', 'Order form translates full-page create workflow'),
+        ]:
+            r = c.get(url)
+            status(r, 200, f'{label} loads')
+            has(r, expected, label)
+
+        for url, expected, label in [
+            ('/products/new', 'Tên sản phẩm', 'Product modal translates labels'),
+            ('/customers/new', 'Tên khách hàng', 'Customer modal translates labels'),
+            ('/categories/new', 'Tên danh mục', 'Category modal translates labels'),
+            ('/inventory/new', 'Giá vốn mỗi đơn vị', 'Inventory intake modal translates labels'),
+        ]:
+            r = c.get(url)
+            status(r, 200, f'{label} loads')
+            has(r, expected, label)
+
+        completed_order = db_query("SELECT id, order_status FROM orders WHERE order_status='completed' LIMIT 1")
+        check(completed_order and completed_order['order_status'] == 'completed',
+              'Internal order_status value remains English while UI is Vietnamese')
+        if completed_order:
+            r = c.get(f'/returns/new/items/{completed_order["id"]}')
+            status(r, 200, 'Return item HTMX partial loads in Vietnamese mode')
+            has(r, 'Bước 2', 'Return item HTMX partial translates step label')
+            has(r, 'Chi phí bán lại tùy chọn', 'Return item HTMX partial translates restock cost details')
+
+        r = post(c, '/switch-language', {})
+        r = c.get('/dashboard/?period=all')
+        has(r, 'Dashboard', 'English dashboard title renders after toggling back')
+        hasnt(r, 'Tổng quan', 'Vietnamese dashboard title is removed after toggling back')
+        with c.session_transaction() as sess:
+            check(sess.get('ui_language') == 'en', 'English language choice is restored in session')
+
         # ── 15. Reports ────────────────────────────────────────────────────
         section('Reports')
 

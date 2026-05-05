@@ -5,9 +5,9 @@
 {% block content %}
 <div class="page-header">
     <div>
-        <h1>{% if order %}Edit Order <small style="font-size:0.6em; color:var(--text-light);">{{ order['order_code'] }}</small>{% else %}Create Order{% endif %}</h1>
+        <h1>{% if order %}{{ _('Edit Order') }} <small style="font-size:0.6em; color:var(--text-light);">{{ order['order_code'] }}</small>{% else %}{{ _('Create Order') }}{% endif %}</h1>
         {% if order %}
-            <p class="text-muted">Only Draft or Processing orders can be edited. Saving will replace all items.</p>
+            <p class="text-muted">{{ _('Only Draft or Processing orders can be edited. Saving will replace all items.') }}</p>
         {% endif %}
     </div>
 </div>
@@ -23,9 +23,9 @@
             <div class="form-section">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="customer_id">Customer *</label>
+                        <label for="customer_id">{{ _('Customer *') }}</label>
                         <select id="customer_id" name="customer_id" required class="form-input">
-                            <option value="">-- Select Customer --</option>
+                            <option value="">-- {{ _('Select Customer') }} --</option>
                             {% for customer in customers %}
                                 <option value="{{ customer['id'] }}"
                                     {% if order and order['customer_id'] == customer['id'] %}selected{% endif %}>
@@ -36,7 +36,7 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="order_date">Order Date *</label>
+                        <label for="order_date">{{ _('Order Date *') }}</label>
                         <input type="date" id="order_date" name="order_date" required class="form-input"
                                value="{% if order %}{{ order['order_date'][:10] }}{% else %}{{ today }}{% endif %}">
                     </div>
@@ -45,17 +45,17 @@
 
             <!-- Line Items -->
             <div class="form-section">
-                <h3>Order Items</h3>
+                <h3>{{ _('Order Items') }}</h3>
                 <div class="table-wrapper">
                     <table class="table mobile-card-table order-items-table" id="items-table">
                         <thead>
                             <tr>
-                                <th style="min-width:200px;">Product</th>
-                                <th style="width:90px;">Qty</th>
-                                <th style="width:130px;">Unit Price</th>
-                                <th style="width:100px;">Discount %</th>
-                                <th style="width:130px;">Line Total</th>
-                                <th style="width:70px;">Remove</th>
+                                <th style="min-width:200px;">{{ _('Product') }}</th>
+                                <th style="width:90px;">{{ _('Qty') }}</th>
+                                <th style="width:130px;">{{ _('Unit Price') }}</th>
+                                <th style="width:100px;">{{ _('Discount %') }}</th>
+                                <th style="width:130px;">{{ _('Line Total') }}</th>
+                                <th style="width:70px;">{{ _('Remove') }}</th>
                             </tr>
                         </thead>
                         <tbody id="order-items">
@@ -64,7 +64,7 @@
                     </table>
                 </div>
                 <button type="button" class="btn btn-outline btn-sm" onclick="addItem()" style="margin-top:0.5rem;">
-                    + Add Item
+                    + {{ _('Add Item') }}
                 </button>
             </div>
 
@@ -84,21 +84,21 @@
                                value="{{ order['shipping_fee']|int if order else 0 }}">
                     </div>
                     <div class="form-group">
-                        <label for="shipping_paid_by">Shipping Paid By</label>
+                        <label for="shipping_paid_by">{{ _('Shipping Paid By') }}</label>
                         <select id="shipping_paid_by" name="shipping_paid_by" class="form-input">
                             <option value="customer" {% if order and order['shipping_paid_by'] == 'customer' %}selected{% elif not order %}selected{% endif %}>
-                                Customer (adds to revenue)
+                                {{ _('Customer (adds to revenue)') }}
                             </option>
                             <option value="seller" {% if order and order['shipping_paid_by'] == 'seller' %}selected{% endif %}>
-                                Seller (adds to costs)
+                                {{ _('Seller (adds to costs)') }}
                             </option>
                         </select>
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="notes">Notes</label>
+                    <label for="notes">{{ _('Notes') }}</label>
                     <textarea id="notes" name="notes" class="form-input" rows="3"
-                              placeholder="Order notes...">{{ order['notes'] or '' if order else '' }}</textarea>
+                              placeholder="{{ _('Order notes...') }}">{{ order['notes'] or '' if order else '' }}</textarea>
                 </div>
 
                 <!-- Running total preview -->
@@ -112,9 +112,9 @@
             <!-- Actions -->
             <div class="form-actions">
                 <a href="{% if order %}{{ url_for('orders.order_detail', id=order['id']) }}{% else %}{{ url_for('orders.orders_list') }}{% endif %}"
-                   class="btn btn-outline">Cancel</a>
+                   class="btn btn-outline">{{ _('Cancel') }}</a>
                 <button type="submit" class="btn btn-primary">
-                    {% if order %}Save Changes{% else %}Create Order{% endif %}
+                    {% if order %}{{ _('Save Changes') }}{% else %}{{ _('Create Order') }}{% endif %}
                 </button>
             </div>
         </form>

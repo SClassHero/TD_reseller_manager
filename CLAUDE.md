@@ -11,7 +11,7 @@ A self-hosted inventory management web app for a small Vietnamese e-commerce bus
 Built with Flask + HTMX + SQLite. Runs on a Windows PC or NAS (accessible over the local network).
 
 **Default URL:** `http://localhost:5000`
-**App version:** `0.5.0` (see `version.py` and `CHANGELOG.md`)
+**App version:** `0.6.0` (see `version.py` and `CHANGELOG.md`)
 **Database schema version:** `5` (see `db.SCHEMA_VERSION` and `SCHEMA_CHANGELOG.md`)
 **Default admin login:** username `admin`, password `admin123` (stored as a Werkzeug password hash)
 **Primary currency:** VND (Vietnamese Dong), with a live USD toggle
@@ -37,14 +37,14 @@ openpyxl is only needed for XLSX export; CSV export works without it.
 ## How to Test
 
 ```bash
-python test_app.py                    # 396 tests: app CRUD, role access, mobile markup, exports, CSRF
+python test_app.py                    # 425 tests: app CRUD, role access, mobile markup, UI language, exports, CSRF
 python test_backup.py                 # 16 tests: backup/restore/reset/deployment smoke tests
 python test_real_world_scenarios.py   # 130 tests: golden-ledger FIFO/accounting
 python test_edge_cases.py             # 78 tests: cancellation, guards, cumulative validation
 python test_edge_cases_2.py           # 53 tests: partial returns, overpayment, recovery code
 ```
 
-Total: 673 tests, all passing. Auto-backup is suppressed under Flask `TESTING` mode.
+Total: 702 tests, all passing. Auto-backup is suppressed under Flask `TESTING` mode.
 
 ---
 
@@ -67,6 +67,7 @@ inventory_app_v5/
 ├── app.py                  # App factory, filters, context processors, currency switch
 ├── auth.py                 # login/admin decorators and limited-role guard
 ├── list_utils.py           # Shared list search/sort/pagination helpers
+├── i18n.py                 # Display-only English/Vietnamese UI translations
 ├── db.py                   # Schema, init_db(), generate_code(), generate_product_code()
 ├── version.py              # App release version metadata
 ├── CHANGELOG.md            # App release history
@@ -96,7 +97,7 @@ inventory_app_v5/
 │   ├── returns.py
 │   └── settings.py         # Exchange rate, passwords/accounts, backup, DB reset
 └── templates/
-    ├── base.html            # Sidebar nav, currency toggle button, flash messages
+    ├── base.html            # Sidebar nav, currency/language toggles, flash messages
     ├── partials/            # HTMX modal partials (loaded via hx-get, submitted via regular POST)
     │   ├── customer_form.html
     │   ├── intake_form.html
@@ -305,6 +306,14 @@ Keep app versioning separate from `db.SCHEMA_VERSION`:
 
 ---
 
+## UI Language Support
+
+UI language is display-only and session-based. `i18n.py` exposes English/Vietnamese labels through the Jinja `_()` helper, and `/switch-language` toggles `session['ui_language']` between `en` and `vi`.
+
+Do not translate backend identifiers, database values, routes, status codes, accounting rules, or stored business data. Values such as `draft`, `processing`, `completed`, `cancelled`, `not_paid`, `partially_paid`, and `fully_paid` remain English internally and are translated only when rendered.
+
+---
+
 ## Template / HTMX Patterns
 
 **Modal partials** (`templates/partials/*.html`):
@@ -339,7 +348,7 @@ Keep app versioning separate from `db.SCHEMA_VERSION`:
 
 ## Implementation Status
 
-All major features are complete and tested (673 tests passing). Full CRUD for Products, Categories, Customers, Inventory, Orders, Returns, Refunds, Payments, Reports, Export, Import. FIFO stock allocation, order state machine, customer debt, write-offs, multi-role auth, backup/restore, mobile-responsive UI, Synology Container Manager/NAS deployment. See test files and the sections above for behavioral details.
+All major features are complete and tested (702 tests passing). Full CRUD for Products, Categories, Customers, Inventory, Orders, Returns, Refunds, Payments, Reports, Export, Import. FIFO stock allocation, order state machine, customer debt, write-offs, multi-role auth, backup/restore, mobile-responsive UI, display-only English/Vietnamese UI toggle, Synology Container Manager/NAS deployment. See test files and the sections above for behavioral details.
 
 ---
 

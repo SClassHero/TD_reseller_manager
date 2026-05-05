@@ -1,33 +1,33 @@
 <table class="table mobile-card-table">
     <thead>
         <tr>
-            <th>Name</th>
-            <th>Description</th>
-            <th>Product Count</th>
-            <th>Actions</th>
+            <th>{{ _('Name') }}</th>
+            <th>{{ _('Description') }}</th>
+            <th>{{ _('Product Count') }}</th>
+            <th>{{ _('Actions') }}</th>
         </tr>
     </thead>
     <tbody>
         {% for category in categories %}
             <tr>
-                <td data-label="Name"><strong>{{ category.name }}</strong></td>
-                <td data-label="Description">{{ category.description or '-' }}</td>
-                <td data-label="Product Count"><span class="badge">{{ category.product_count|number }}</span></td>
-                <td data-label="Actions">
+                <td data-label="{{ _('Name') }}"><strong>{{ category.name }}</strong></td>
+                <td data-label="{{ _('Description') }}">{{ category.description or '-' }}</td>
+                <td data-label="{{ _('Product Count') }}"><span class="badge">{{ category.product_count|number }}</span></td>
+                <td data-label="{{ _('Actions') }}">
                     <div class="action-buttons">
                         {% if is_admin %}
                             <button class="btn btn-sm btn-outline"
                                     hx-get="{{ url_for('categories.edit_category', id=category.id) }}"
                                     hx-target="#modal-container">
-                                Edit
+                                {{ _('Edit') }}
                             </button>
                             <button class="btn btn-sm btn-danger"
                                     hx-post="{{ url_for('categories.delete_category', id=category.id) }}"
-                                    hx-confirm="Delete this category? Products in this category will not be deleted.">
-                                Delete
+                                    hx-confirm="{{ _('Delete this category? Products in this category will not be deleted.') }}">
+                                {{ _('Delete') }}
                             </button>
                         {% else %}
-                            <span class="text-muted">View only</span>
+                            <span class="text-muted">{{ _('View only') }}</span>
                         {% endif %}
                     </div>
                 </td>

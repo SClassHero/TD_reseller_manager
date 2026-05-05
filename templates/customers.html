@@ -4,49 +4,49 @@
 
 {% block content %}
 <div class="page-header">
-    <h1>Customers</h1>
+    <h1>{{ _('Customers') }}</h1>
     {% if is_admin %}
         <button class="btn btn-primary" hx-get="{{ url_for('customers.new_customer') }}" hx-target="#modal-container">
-            + Add Customer
+            + {{ _('Add Customer') }}
         </button>
     {% endif %}
 </div>
 
 <form class="filter-bar list-controls" method="GET" action="{{ url_for('customers.customers_list') }}">
     <div class="list-control-group search-control">
-        <label for="customer-search">Search</label>
+        <label for="customer-search">{{ _('Search') }}</label>
         <input id="customer-search"
                type="search"
                name="search"
-               placeholder="Name, code, phone, email, or region"
+               placeholder="{{ _('Name, code, phone, email, or region') }}"
                class="search-input"
                value="{{ search or '' }}">
     </div>
 
     <div class="list-control-group">
-        <label for="customer-sort">Sort</label>
+        <label for="customer-sort">{{ _('Sort') }}</label>
         <select id="customer-sort" class="filter-select" name="sort">
-            <option value="name" {% if sort == 'name' %}selected{% endif %}>Name</option>
-            <option value="code" {% if sort == 'code' %}selected{% endif %}>Code</option>
-            <option value="region" {% if sort == 'region' %}selected{% endif %}>Region</option>
+            <option value="name" {% if sort == 'name' %}selected{% endif %}>{{ _('Name') }}</option>
+            <option value="code" {% if sort == 'code' %}selected{% endif %}>{{ _('Code') }}</option>
+            <option value="region" {% if sort == 'region' %}selected{% endif %}>{{ _('Region') }}</option>
             {% if is_admin %}
-                <option value="spent" {% if sort == 'spent' %}selected{% endif %}>Total spent</option>
-                <option value="debt" {% if sort == 'debt' %}selected{% endif %}>Outstanding debt</option>
+                <option value="spent" {% if sort == 'spent' %}selected{% endif %}>{{ _('Total Spent') }}</option>
+                <option value="debt" {% if sort == 'debt' %}selected{% endif %}>{{ _('Outstanding Debt') }}</option>
             {% endif %}
-            <option value="created" {% if sort == 'created' %}selected{% endif %}>Date added</option>
+            <option value="created" {% if sort == 'created' %}selected{% endif %}>{{ _('Date added') }}</option>
         </select>
     </div>
 
     <div class="list-control-group">
-        <label for="customer-direction">Direction</label>
+        <label for="customer-direction">{{ _('Direction') }}</label>
         <select id="customer-direction" class="filter-select" name="direction">
-            <option value="asc" {% if direction == 'asc' %}selected{% endif %}>Low to high</option>
-            <option value="desc" {% if direction == 'desc' %}selected{% endif %}>High to low</option>
+            <option value="asc" {% if direction == 'asc' %}selected{% endif %}>{{ _('Low to high') }}</option>
+            <option value="desc" {% if direction == 'desc' %}selected{% endif %}>{{ _('High to low') }}</option>
         </select>
     </div>
 
     <div class="list-control-group">
-        <label for="customer-per-page">Rows</label>
+        <label for="customer-per-page">{{ _('Rows') }}</label>
         <select id="customer-per-page" class="filter-select" name="per_page">
             {% for option in per_page_options %}
                 <option value="{{ option }}" {% if per_page == option %}selected{% endif %}>{{ option }}</option>
@@ -55,9 +55,9 @@
     </div>
 
     <div class="list-control-actions">
-        <button class="btn btn-secondary" type="submit">Apply</button>
+        <button class="btn btn-secondary" type="submit">{{ _('Apply') }}</button>
         {% if search or sort != 'name' or direction != 'asc' or per_page != 25 %}
-            <a class="btn btn-outline" href="{{ url_for('customers.customers_list') }}">Reset</a>
+            <a class="btn btn-outline" href="{{ url_for('customers.customers_list') }}">{{ _('Reset') }}</a>
         {% endif %}
     </div>
 </form>
@@ -75,7 +75,7 @@
             {% endwith %}
         {% else %}
             <div class="empty-state">
-                <p>No customers found.</p>
+                <p>{{ _('No customers found.') }}</p>
             </div>
         {% endif %}
     </div>

@@ -4,10 +4,10 @@
 
 {% block content %}
 <div class="page-header">
-    <h1>Orders</h1>
+    <h1>{{ _('Orders') }}</h1>
     {% if is_admin %}
         <a href="{{ url_for('orders.new_order') }}" class="btn btn-primary">
-            + New Order
+            + {{ _('New Order') }}
         </a>
     {% endif %}
 </div>
@@ -15,23 +15,23 @@
 <div class="filter-tabs">
     <a href="{{ url_for('orders.orders_list', search=search, sort=sort, direction=direction, per_page=per_page) }}"
        class="filter-tab {% if not status_filter %}active{% endif %}">
-        All
+        {{ _('All') }}
     </a>
     <a href="{{ url_for('orders.orders_list', status='draft', search=search, sort=sort, direction=direction, per_page=per_page) }}"
        class="filter-tab {% if status_filter == 'draft' %}active{% endif %}">
-        Draft
+        {{ _('Draft') }}
     </a>
     <a href="{{ url_for('orders.orders_list', status='processing', search=search, sort=sort, direction=direction, per_page=per_page) }}"
        class="filter-tab {% if status_filter == 'processing' %}active{% endif %}">
-        Processing
+        {{ _('Processing') }}
     </a>
     <a href="{{ url_for('orders.orders_list', status='completed', search=search, sort=sort, direction=direction, per_page=per_page) }}"
        class="filter-tab {% if status_filter == 'completed' %}active{% endif %}">
-        Completed
+        {{ _('Completed') }}
     </a>
     <a href="{{ url_for('orders.orders_list', status='cancelled', search=search, sort=sort, direction=direction, per_page=per_page) }}"
        class="filter-tab {% if status_filter == 'cancelled' %}active{% endif %}">
-        Cancelled
+        {{ _('Cancelled') }}
     </a>
 </div>
 
@@ -39,37 +39,37 @@
     <input type="hidden" name="status" value="{{ status_filter }}">
 
     <div class="list-control-group search-control">
-        <label for="order-search">Search</label>
+        <label for="order-search">{{ _('Search') }}</label>
         <input id="order-search"
                type="search"
                name="search"
-               placeholder="Order code, customer, or customer code"
+               placeholder="{{ _('Order code, customer, or customer code') }}"
                class="search-input"
                value="{{ search or '' }}">
     </div>
 
     <div class="list-control-group">
-        <label for="order-sort">Sort</label>
+        <label for="order-sort">{{ _('Sort') }}</label>
         <select id="order-sort" class="filter-select" name="sort">
-            <option value="date" {% if sort == 'date' %}selected{% endif %}>Order date</option>
-            <option value="code" {% if sort == 'code' %}selected{% endif %}>Order code</option>
-            <option value="customer" {% if sort == 'customer' %}selected{% endif %}>Customer</option>
-            <option value="total" {% if sort == 'total' %}selected{% endif %}>Total</option>
-            <option value="status" {% if sort == 'status' %}selected{% endif %}>Status</option>
-            <option value="payment" {% if sort == 'payment' %}selected{% endif %}>Payment</option>
+            <option value="date" {% if sort == 'date' %}selected{% endif %}>{{ _('Order date') }}</option>
+            <option value="code" {% if sort == 'code' %}selected{% endif %}>{{ _('Order code') }}</option>
+            <option value="customer" {% if sort == 'customer' %}selected{% endif %}>{{ _('Customer') }}</option>
+            <option value="total" {% if sort == 'total' %}selected{% endif %}>{{ _('Total') }}</option>
+            <option value="status" {% if sort == 'status' %}selected{% endif %}>{{ _('Status') }}</option>
+            <option value="payment" {% if sort == 'payment' %}selected{% endif %}>{{ _('Payment') }}</option>
         </select>
     </div>
 
     <div class="list-control-group">
-        <label for="order-direction">Direction</label>
+        <label for="order-direction">{{ _('Direction') }}</label>
         <select id="order-direction" class="filter-select" name="direction">
-            <option value="desc" {% if direction == 'desc' %}selected{% endif %}>High to low</option>
-            <option value="asc" {% if direction == 'asc' %}selected{% endif %}>Low to high</option>
+            <option value="desc" {% if direction == 'desc' %}selected{% endif %}>{{ _('High to low') }}</option>
+            <option value="asc" {% if direction == 'asc' %}selected{% endif %}>{{ _('Low to high') }}</option>
         </select>
     </div>
 
     <div class="list-control-group">
-        <label for="order-per-page">Rows</label>
+        <label for="order-per-page">{{ _('Rows') }}</label>
         <select id="order-per-page" class="filter-select" name="per_page">
             {% for option in per_page_options %}
                 <option value="{{ option }}" {% if per_page == option %}selected{% endif %}>{{ option }}</option>
@@ -78,9 +78,9 @@
     </div>
 
     <div class="list-control-actions">
-        <button class="btn btn-secondary" type="submit">Apply</button>
+        <button class="btn btn-secondary" type="submit">{{ _('Apply') }}</button>
         {% if search or status_filter or sort != 'date' or direction != 'desc' or per_page != 25 %}
-            <a class="btn btn-outline" href="{{ url_for('orders.orders_list') }}">Reset</a>
+            <a class="btn btn-outline" href="{{ url_for('orders.orders_list') }}">{{ _('Reset') }}</a>
         {% endif %}
     </div>
 </form>
@@ -98,7 +98,7 @@
             {% endwith %}
         {% else %}
             <div class="empty-state">
-                <p>No orders found.</p>
+                <p>{{ _('No orders found.') }}</p>
             </div>
         {% endif %}
     </div>

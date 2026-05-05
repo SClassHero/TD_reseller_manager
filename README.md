@@ -44,9 +44,11 @@ password: admin123
 
 Change the password immediately in **Settings**, then generate and save a recovery code.
 
+The UI can be toggled between English and Vietnamese from the top header. This is display-only: backend values, routes, database schema, status codes, accounting rules, and stored data remain unchanged.
+
 ## Current Version
 
-App version: `0.5.0`
+App version: `0.6.0`
 
 Database schema version: `5`
 
@@ -292,11 +294,13 @@ python test_edge_cases.py
 python test_edge_cases_2.py
 ```
 
-Current documented baseline: 673 passing tests.
+Current documented baseline: 702 passing tests.
 
 ## Project Docs
 
 - [USERGUIDE.md](USERGUIDE.md): detailed user manual and workflows
+- [README.vi.md](README.vi.md): Vietnamese README
+- [USERGUIDE.vi.md](USERGUIDE.vi.md): Vietnamese quick user guide
 - [DEPLOY_SYNOLOGY.md](DEPLOY_SYNOLOGY.md): Synology deployment guide
 - [PACKAGING_WINDOWS.md](PACKAGING_WINDOWS.md): portable Windows build guide
 - [CHANGELOG.md](CHANGELOG.md): app release history

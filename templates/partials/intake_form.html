@@ -1,7 +1,7 @@
 <div class="modal active">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>Add Inventory Intake</h3>
+            <h3>{{ _('Add Inventory Intake') }}</h3>
             <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
         </div>
 
@@ -10,10 +10,10 @@
 
             <div class="modal-body">
                 <div class="form-group">
-                    <label for="product_id">Product *</label>
+                    <label for="product_id">{{ _('Product *') }}</label>
                     <select id="product_id" name="product_id" class="form-input" required
                             onchange="prefillCost(this)">
-                        <option value="">-- Select Product --</option>
+                        <option value="">-- {{ _('Select Product') }} --</option>
                         {% for product in products %}
                             <option value="{{ product['id'] }}"
                                     data-cost="{{ product['cost_price'] or '' }}">
@@ -25,22 +25,22 @@
 
                 <div class="form-group">
                     <label for="quantity">
-                        Quantity *
+                        {{ _('Quantity *') }}
                         <small class="text-muted" style="font-weight:normal;">
-                            (use negative for pre-orders / backorders not yet in warehouse)
+                            {{ _('use negative for pre-orders / backorders not yet in warehouse') }}
                         </small>
                     </label>
                     <input type="number"
                            id="quantity"
                            name="quantity"
                            class="form-input"
-                           placeholder="e.g. 10 or -5 for backorder"
+                           placeholder="{{ _('e.g. 10 or -5 for backorder') }}"
                            required>
                 </div>
 
                 <div class="modal-field-grid">
                     <div class="form-group">
-                        <label for="cost_price">Cost Price per Unit</label>
+                        <label for="cost_price">{{ _('Cost Price per Unit') }}</label>
                         <input type="number"
                                id="cost_price"
                                name="cost_price"
@@ -52,8 +52,8 @@
 
                     <div class="form-group">
                         <label for="shipping_cost">
-                            Shipping Cost to Warehouse
-                            <small class="text-muted" style="font-weight:normal;">(total, not per unit)</small>
+                            {{ _('Shipping Cost to Warehouse') }}
+                            <small class="text-muted" style="font-weight:normal;">{{ _('total, not per unit') }}</small>
                         </label>
                         <input type="number"
                                id="shipping_cost"
@@ -68,7 +68,7 @@
 
                 <div class="modal-field-grid">
                     <div class="form-group">
-                        <label for="currency">Currency</label>
+                        <label for="currency">{{ _('Currency') }}</label>
                         <select id="currency" name="currency" class="form-input">
                             <option value="VND" {% if display_currency == 'VND' %}selected{% endif %}>VND</option>
                             <option value="USD" {% if display_currency == 'USD' %}selected{% endif %}>USD</option>
@@ -76,26 +76,26 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="intake_date">Intake Date</label>
+                        <label for="intake_date">{{ _('Intake Date') }}</label>
                         <input type="date"
                                id="intake_date"
                                name="intake_date"
                                class="form-input">
                         <small id="intake-date-warn" style="color:#f59e0b; display:none; margin-top:4px;">
-                            Date is more than 30 days in the past. This lot will be inserted earlier in the FIFO queue.
+                            {{ _('Date is more than 30 days in the past. This lot will be inserted earlier in the FIFO queue.') }}
                         </small>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="notes">Notes</label>
-                    <textarea id="notes" name="notes" class="form-input" rows="2" placeholder="Optional notes"></textarea>
+                    <label for="notes">{{ _('Notes') }}</label>
+                    <textarea id="notes" name="notes" class="form-input" rows="2" placeholder="{{ _('Optional notes') }}"></textarea>
                 </div>
             </div>
 
             <div class="modal-footer">
-                <button type="button" class="btn btn-outline" onclick="this.closest('.modal').remove()">Cancel</button>
-                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="button" class="btn btn-outline" onclick="this.closest('.modal').remove()">{{ _('Cancel') }}</button>
+                <button type="submit" class="btn btn-primary">{{ _('Save') }}</button>
             </div>
         </form>
     </div>

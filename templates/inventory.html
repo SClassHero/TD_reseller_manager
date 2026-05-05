@@ -4,10 +4,10 @@
 
 {% block content %}
 <div class="page-header">
-    <h1>Inventory</h1>
+    <h1>{{ _('Inventory') }}</h1>
     {% if is_admin %}
         <button class="btn btn-primary" hx-get="{{ url_for('inventory.new_intake') }}" hx-target="#modal-container">
-            + Add Intake
+            + {{ _('Add Intake') }}
         </button>
     {% endif %}
 </div>
@@ -16,49 +16,49 @@
       method="GET"
       action="{{ url_for('inventory.inventory_list') }}">
     <div class="list-control-group search-control">
-        <label for="inventory-search">Search</label>
+        <label for="inventory-search">{{ _('Search') }}</label>
         <input id="inventory-search"
                type="search"
                name="q"
                class="search-input"
                value="{{ q }}"
-               placeholder="Product name, code, or barcode">
+               placeholder="{{ _('Product name, code, or barcode') }}">
     </div>
 
     <div class="list-control-group">
-        <label for="inventory-status">Status</label>
+        <label for="inventory-status">{{ _('Status') }}</label>
         <select id="inventory-status" name="status" class="filter-select">
-            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All products</option>
-            <option value="in_stock" {% if status_filter == 'in_stock' %}selected{% endif %}>In stock</option>
-            <option value="low_stock" {% if status_filter == 'low_stock' %}selected{% endif %}>Low stock</option>
-            <option value="backorder" {% if status_filter == 'backorder' %}selected{% endif %}>Backorders</option>
-            <option value="out" {% if status_filter == 'out' %}selected{% endif %}>Out of stock</option>
+            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>{{ _('All products') }}</option>
+            <option value="in_stock" {% if status_filter == 'in_stock' %}selected{% endif %}>{{ _('In stock') }}</option>
+            <option value="low_stock" {% if status_filter == 'low_stock' %}selected{% endif %}>{{ _('Low stock') }}</option>
+            <option value="backorder" {% if status_filter == 'backorder' %}selected{% endif %}>{{ _('Backorders') }}</option>
+            <option value="out" {% if status_filter == 'out' %}selected{% endif %}>{{ _('Out of stock') }}</option>
         </select>
     </div>
 
     <div class="list-control-group">
-        <label for="inventory-sort">Sort</label>
+        <label for="inventory-sort">{{ _('Sort') }}</label>
         <select id="inventory-sort" name="sort" class="filter-select">
-            <option value="attention" {% if sort == 'attention' %}selected{% endif %}>Needs attention</option>
-            <option value="name" {% if sort == 'name' %}selected{% endif %}>Product name</option>
-            <option value="code" {% if sort == 'code' %}selected{% endif %}>Product code</option>
-            <option value="available" {% if sort == 'available' %}selected{% endif %}>Available units</option>
-            <option value="backorder" {% if sort == 'backorder' %}selected{% endif %}>Backorder units</option>
-            <option value="value" {% if sort == 'value' %}selected{% endif %}>Stock value</option>
-            <option value="lots" {% if sort == 'lots' %}selected{% endif %}>Active lots</option>
+            <option value="attention" {% if sort == 'attention' %}selected{% endif %}>{{ _('Needs attention') }}</option>
+            <option value="name" {% if sort == 'name' %}selected{% endif %}>{{ _('Product name') }}</option>
+            <option value="code" {% if sort == 'code' %}selected{% endif %}>{{ _('Product code') }}</option>
+            <option value="available" {% if sort == 'available' %}selected{% endif %}>{{ _('Available units') }}</option>
+            <option value="backorder" {% if sort == 'backorder' %}selected{% endif %}>{{ _('Backorder units') }}</option>
+            <option value="value" {% if sort == 'value' %}selected{% endif %}>{{ _('Stock value') }}</option>
+            <option value="lots" {% if sort == 'lots' %}selected{% endif %}>{{ _('Active lots') }}</option>
         </select>
     </div>
 
     <div class="list-control-group">
-        <label for="inventory-direction">Direction</label>
+        <label for="inventory-direction">{{ _('Direction') }}</label>
         <select id="inventory-direction" name="direction" class="filter-select">
-            <option value="asc" {% if direction == 'asc' %}selected{% endif %}>Low to high</option>
-            <option value="desc" {% if direction == 'desc' %}selected{% endif %}>High to low</option>
+            <option value="asc" {% if direction == 'asc' %}selected{% endif %}>{{ _('Low to high') }}</option>
+            <option value="desc" {% if direction == 'desc' %}selected{% endif %}>{{ _('High to low') }}</option>
         </select>
     </div>
 
     <div class="list-control-group">
-        <label for="inventory-per-page">Rows</label>
+        <label for="inventory-per-page">{{ _('Rows') }}</label>
         <select id="inventory-per-page" class="filter-select" name="per_page">
             {% for option in per_page_options %}
                 <option value="{{ option }}" {% if per_page == option %}selected{% endif %}>{{ option }}</option>
@@ -67,36 +67,36 @@
     </div>
 
     <div class="list-control-actions">
-        <button class="btn btn-secondary" type="submit">Apply</button>
+        <button class="btn btn-secondary" type="submit">{{ _('Apply') }}</button>
         {% if q or status_filter != 'all' or sort != 'attention' or direction != 'asc' or per_page != 25 %}
-            <a class="btn btn-outline" href="{{ url_for('inventory.inventory_list') }}">Reset</a>
+            <a class="btn btn-outline" href="{{ url_for('inventory.inventory_list') }}">{{ _('Reset') }}</a>
         {% endif %}
     </div>
 </form>
 
 <div class="inventory-summary-grid">
     <div class="inventory-summary-tile">
-        <span>Products</span>
+        <span>{{ _('Products') }}</span>
         <strong>{{ stats.product_count|number }}</strong>
     </div>
     <div class="inventory-summary-tile">
-        <span>Available Units</span>
+        <span>{{ _('Available Units') }}</span>
         <strong>{{ stats.available_units|number }}</strong>
     </div>
     <div class="inventory-summary-tile">
-        <span>Backorder Units</span>
+        <span>{{ _('Backorder Units') }}</span>
         <strong>{{ stats.backorder_units|number }}</strong>
     </div>
     <div class="inventory-summary-tile">
-        <span>Stock Value</span>
+        <span>{{ _('Stock Value') }}</span>
         <strong>{{ stats.stock_value|vnd }}</strong>
     </div>
 </div>
 
 <div class="inventory-note">
-    <strong>Stock adjustments:</strong>
-    use <strong>Write Off</strong> for damaged, unsellable, lost, sample, or count-correction stock.
-    It reduces available stock and records a write-off cost, but does not change sales revenue, refunds, or order COGS.
+    <strong>{{ _('Stock adjustments:') }}</strong>
+    {{ _('use Write Off for damaged, unsellable, lost, sample, or count-correction stock.') }}
+    {{ _('It reduces available stock and records a write-off cost, but does not change sales revenue, refunds, or order COGS.') }}
 </div>
 
 <div id="inventory-results">
@@ -107,7 +107,7 @@
         {% endwith %}
     {% else %}
         <div class="empty-state">
-            <p>No products match this inventory view.</p>
+            <p>{{ _('No products match this inventory view.') }}</p>
         </div>
     {% endif %}
 </div>
@@ -115,20 +115,20 @@
 {% if recent_adjustments %}
 <div class="card">
     <div class="card-header">
-        <h2>Recent Stock Adjustments</h2>
+        <h2>{{ _('Recent Stock Adjustments') }}</h2>
     </div>
     <div class="card-body">
         <div class="table-wrapper">
             <table class="table mobile-card-table">
                 <thead>
                     <tr>
-                        <th>Code</th>
-                        <th>Date</th>
-                        <th>Product</th>
-                        <th>Qty</th>
-                        <th>Reason</th>
-                        <th>Write-off Cost</th>
-                        <th>Notes</th>
+                        <th>{{ _('Code') }}</th>
+                        <th>{{ _('Date') }}</th>
+                        <th>{{ _('Product') }}</th>
+                        <th>{{ _('Qty') }}</th>
+                        <th>{{ _('Reason') }}</th>
+                        <th>{{ _('Write-off Cost') }}</th>
+                        <th>{{ _('Notes') }}</th>
                     </tr>
                 </thead>
                 <tbody>

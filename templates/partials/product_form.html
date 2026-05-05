@@ -1,7 +1,7 @@
 <div class="modal active">
     <div class="modal-content" style="max-width: 620px;">
         <div class="modal-header">
-            <h3>{% if product %}Edit{% else %}Add{% endif %} Product</h3>
+            <h3>{% if product %}{{ _('Edit Product') }}{% else %}{{ _('Add Product') }}{% endif %}</h3>
             <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
         </div>
 
@@ -15,29 +15,29 @@
 
             <div class="modal-body">
                 <div class="form-group">
-                    <label for="product_code">Product Code</label>
+                    <label for="product_code">{{ _('Product Code') }}</label>
                     <div class="modal-code-row">
                         <input type="text"
                                id="product_code"
                                name="product_code"
                                class="form-input"
-                               placeholder="Leave blank to auto-generate"
+                               placeholder="{{ _('Leave blank to auto-generate') }}"
                                value="{{ product.product_code if product else suggested_code }}"
                                style="font-family:monospace; text-transform:uppercase;"
                                oninput="this.value=this.value.toUpperCase()">
                         <button type="button"
                                 class="btn btn-outline btn-sm"
                                 id="gen-code-btn"
-                                title="Auto-generate code from category"
+                                title="{{ _('Auto-generate code from category') }}"
                                 onclick="generateCode()">
-                            Generate
+                            {{ _('Generate') }}
                         </button>
                     </div>
-                    <small class="text-muted">Format: 2-letter category prefix + 4 digits (e.g. EL0001). Or type your own.</small>
+                    <small class="text-muted">{{ _('Format: 2-letter category prefix + 4 digits (e.g. EL0001). Or type your own.') }}</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="name">Product Name *</label>
+                    <label for="name">{{ _('Product Name *') }}</label>
                     <input type="text"
                            id="name"
                            name="name"
@@ -47,9 +47,9 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="category_id">Category</label>
+                    <label for="category_id">{{ _('Category') }}</label>
                     <select id="category_id" name="category_id" class="form-input" onchange="onCategoryChange()">
-                        <option value="">-- Select Category --</option>
+                        <option value="">-- {{ _('Select Category') }} --</option>
                         {% for category in categories %}
                             <option value="{{ category.id }}" {% if product and product.category_id == category.id %}selected{% endif %}>
                                 {{ category.name }}
@@ -60,7 +60,7 @@
 
                 <div class="modal-field-grid">
                     <div class="form-group">
-                        <label for="sale_price">Sale Price</label>
+                        <label for="sale_price">{{ _('Sale Price') }}</label>
                         <input type="number"
                                id="sale_price"
                                name="sale_price"
@@ -71,7 +71,7 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="cost_price">Cost Price</label>
+                        <label for="cost_price">{{ _('Cost Price') }}</label>
                         <input type="number"
                                id="cost_price"
                                name="cost_price"
@@ -84,7 +84,7 @@
 
                 <div class="modal-field-grid">
                     <div class="form-group">
-                        <label for="barcode">Barcode</label>
+                        <label for="barcode">{{ _('Barcode') }}</label>
                         <input type="text"
                                id="barcode"
                                name="barcode"
@@ -93,7 +93,7 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="min_stock_level">Min Stock Level</label>
+                        <label for="min_stock_level">{{ _('Min Stock Level') }}</label>
                         <input type="number"
                                id="min_stock_level"
                                name="min_stock_level"
@@ -104,7 +104,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Product Photos
+                    <label>{{ _('Product Photos') }}
                         <span class="text-muted" style="font-weight:normal; font-size:0.85em;">
                             (max 3 - png, jpg, gif, webp)
                         </span>
@@ -115,15 +115,15 @@
                             {% for img in product_images %}
                                 <div style="position:relative; width:90px; height:90px;">
                                     <img src="{{ url_for('product_upload', filename=product.id ~ '/' ~ img.filename) }}"
-                                         alt="Product photo"
+                                         alt="{{ _('Product Photos') }}"
                                          style="width:90px; height:90px; object-fit:cover; border-radius:6px; border:1px solid #ddd;">
                                     <form method="POST"
                                           action="{{ url_for('products.delete_product_image', id=product.id, image_id=img.id) }}"
                                           style="position:absolute; top:2px; right:2px;">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit"
-                                                title="Delete this photo"
-                                                onclick="return confirm('Delete this photo?')"
+                                                title="{{ _('Delete this photo') }}"
+                                                onclick="return confirm('{{ _('Delete this photo?') }}')"
                                                 style="background:rgba(220,53,69,0.85); color:#fff; border:none; border-radius:50%; width:20px; height:20px; font-size:12px; cursor:pointer; line-height:20px; padding:0;">
                                             &times;
                                         </button>
@@ -142,14 +142,14 @@
                                accept=".png,.jpg,.jpeg,.gif,.webp"
                                multiple
                                style="padding:6px;">
-                        <small class="text-muted">{{ slots_left }} photo slot(s) remaining. Select up to {{ slots_left }} file(s).</small>
+                        <small class="text-muted">{{ _('Photo slots remaining') }}: {{ slots_left }}. {{ _('Select up to') }} {{ slots_left }} {{ _('file(s).') }}</small>
                     {% else %}
-                        <p class="text-muted" style="font-size:0.85em;">Maximum 3 photos reached. Delete a photo to add another.</p>
+                        <p class="text-muted" style="font-size:0.85em;">{{ _('Maximum 3 photos reached. Delete a photo to add another.') }}</p>
                     {% endif %}
                 </div>
 
                 <div class="form-group">
-                    <label for="notes">Notes</label>
+                    <label for="notes">{{ _('Notes') }}</label>
                     <textarea id="notes"
                               name="notes"
                               class="form-input"
@@ -158,8 +158,8 @@
             </div>
 
             <div class="modal-footer">
-                <button type="button" class="btn btn-outline" onclick="this.closest('.modal').remove()">Cancel</button>
-                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="button" class="btn btn-outline" onclick="this.closest('.modal').remove()">{{ _('Cancel') }}</button>
+                <button type="submit" class="btn btn-primary">{{ _('Save') }}</button>
             </div>
         </form>
     </div>

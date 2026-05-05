@@ -8,6 +8,21 @@ App versions follow semantic versioning where practical:
 
 Database schema compatibility is tracked separately in `SCHEMA_CHANGELOG.md`.
 
+## [0.6.0] - 2026-05-05
+
+### Added
+
+- English/Vietnamese UI language toggle in the top header.
+- Display-only Vietnamese labels for the main navigation, list pages, common tables, order form, return flow, and frequently used modal dialogs.
+- Session-based UI language preference; backend status values, schema, routes, accounting rules, and stored data remain unchanged.
+- Vietnamese starter docs: `README.vi.md` and `USERGUIDE.vi.md`.
+- Language-toggle integration tests covering full pages, filtered refreshes, modal partials, HTMX return item partials, and switch-back behavior.
+
+### Current Baseline
+
+- 702 documented tests passing.
+- Database schema version: 5.
+
 ## [0.5.0] - 2026-05-04
 
 First formal versioned checkpoint.

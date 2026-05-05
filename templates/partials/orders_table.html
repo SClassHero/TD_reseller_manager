@@ -1,35 +1,35 @@
 <table class="table mobile-card-table">
     <thead>
         <tr>
-            <th>Code</th>
-            <th>Date</th>
-            <th>Customer</th>
-            <th>Total</th>
-            <th>Status</th>
-            <th>Payment</th>
-            <th>Action</th>
+            <th>{{ _('Code') }}</th>
+            <th>{{ _('Date') }}</th>
+            <th>{{ _('Customer') }}</th>
+            <th>{{ _('Total') }}</th>
+            <th>{{ _('Status') }}</th>
+            <th>{{ _('Payment') }}</th>
+            <th>{{ _('Action') }}</th>
         </tr>
     </thead>
     <tbody>
         {% for order in orders %}
             <tr>
-                <td data-label="Code"><strong>{{ order['order_code'] }}</strong></td>
-                <td data-label="Date">{{ order['order_date'] }}</td>
-                <td data-label="Customer">{{ order['customer_name'] }}</td>
-                <td data-label="Total">{{ order['total_amount']|vnd }}</td>
-                <td data-label="Status">
+                <td data-label="{{ _('Code') }}"><strong>{{ order['order_code'] }}</strong></td>
+                <td data-label="{{ _('Date') }}">{{ order['order_date'] }}</td>
+                <td data-label="{{ _('Customer') }}">{{ order['customer_name'] }}</td>
+                <td data-label="{{ _('Total') }}">{{ order['total_amount']|vnd }}</td>
+                <td data-label="{{ _('Status') }}">
                     <span class="badge badge-{{ order['order_status'] }}">
-                        {{ order['order_status']|title }}
+                        {{ _(order['order_status']) }}
                     </span>
                 </td>
-                <td data-label="Payment">
+                <td data-label="{{ _('Payment') }}">
                     <span class="badge badge-{{ order['payment_status'] }}">
-                        {{ order['payment_status'].replace('_', ' ')|title }}
+                        {{ _(order['payment_status']) }}
                     </span>
                 </td>
-                <td data-label="Action">
+                <td data-label="{{ _('Action') }}">
                     <a href="{{ url_for('orders.order_detail', id=order['id']) }}" class="btn btn-sm btn-outline">
-                        View
+                        {{ _('View') }}
                     </a>
                 </td>
             </tr>
