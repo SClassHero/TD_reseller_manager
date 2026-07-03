@@ -42,11 +42,16 @@
                                     hx-target="#modal-container">
                                 {{ _('Edit') }}
                             </button>
-                            <button class="btn btn-sm btn-danger"
-                                    hx-post="{{ url_for('customers.delete_customer', id=customer.id) }}"
-                                    hx-confirm="{{ _('Delete this customer?') }}">
-                                {{ _('Delete') }}
-                            </button>
+                            <form method="POST"
+                                  action="{{ url_for('customers.delete_customer', id=customer.id) }}"
+                                  style="display:inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-danger"
+                                        data-confirm="{{ _('Delete this customer?') }}"
+                                        onclick="return confirm(this.dataset.confirm)">
+                                    {{ _('Delete') }}
+                                </button>
+                            </form>
                         {% endif %}
                     </div>
                 </td>

@@ -21,11 +21,16 @@
                                     hx-target="#modal-container">
                                 {{ _('Edit') }}
                             </button>
-                            <button class="btn btn-sm btn-danger"
-                                    hx-post="{{ url_for('categories.delete_category', id=category.id) }}"
-                                    hx-confirm="{{ _('Delete this category? Products in this category will not be deleted.') }}">
-                                {{ _('Delete') }}
-                            </button>
+                            <form method="POST"
+                                  action="{{ url_for('categories.delete_category', id=category.id) }}"
+                                  style="display:inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-danger"
+                                        data-confirm="{{ _('Delete this category? Products in this category will not be deleted.') }}"
+                                        onclick="return confirm(this.dataset.confirm)">
+                                    {{ _('Delete') }}
+                                </button>
+                            </form>
                         {% else %}
                             <span class="text-muted">{{ _('View only') }}</span>
                         {% endif %}

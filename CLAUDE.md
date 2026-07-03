@@ -12,7 +12,7 @@ Built with Flask + HTMX + SQLite. Runs on a Windows PC or NAS (accessible over t
 
 **Default URL:** `http://localhost:5000`
 **App version:** `0.7.0` (see `version.py` and `CHANGELOG.md`)
-**Database schema version:** `5` (see `db.SCHEMA_VERSION` and `SCHEMA_CHANGELOG.md`)
+**Database schema version:** `6` (see `db.SCHEMA_VERSION` and `SCHEMA_CHANGELOG.md`)
 **Default admin login:** username `admin`, password `admin123` (stored as a Werkzeug password hash)
 **Primary currency:** VND (Vietnamese Dong), with a live USD toggle
 
@@ -46,9 +46,10 @@ python test_images.py                 # 25 tests: product image upload, delete, 
 python test_backup_images.py          # 18 tests: backup/restore including product photos
 python test_import_export.py          # 83 tests: import/export correctness, all 3 import bugs verified
 python test_currency_ui.py            # 52 tests: currency label audit, USD warning banners, new exports/imports
+python test_lot_edit_expiry.py        # 43 tests: lot edit/delete rules, expiry dates, USD import conversion, export/import expiry
 ```
 
-Total: 880 tests, all passing. Auto-backup is suppressed under Flask `TESTING` mode.
+Total: 923 tests, all passing. Auto-backup is suppressed under Flask `TESTING` mode.
 
 ---
 
@@ -133,10 +134,16 @@ inventory_app_v5/
 - ⚠️ `outstanding_debt` is a **stale cached field** — do NOT use it for display. Customer debt is always computed live from orders + payments (see customers.py list query).
 - `total_spent` is incremented when an order first becomes an active sale (`processing` or `completed`) and decremented when that active sale is reopened to `draft` or cancelled.
 
-**`inventory`** — `id`, `product_id`, `quantity`, `remaining_quantity`, `cost_price`, `shipping_cost`, `currency`, `intake_date`, `notes`.
+**`inventory`** — `id`, `product_id`, `quantity`, `remaining_quantity`, `cost_price`, `shipping_cost`, `currency`, `exchange_rate`, `intake_date`, `expiry_date`, `notes`.
 - `quantity` = original intake amount (can be negative for backorders/pre-orders).
 - `remaining_quantity` = what's left after FIFO deductions (tracks in real time).
 - `shipping_cost` = cost to get the goods to the warehouse (separate from order shipping to customer).
+- `expiry_date` = optional `YYYY-MM-DD` batch expiry for perishable/dated goods. **Display and near-expiry warning only** — never affects FIFO ordering, COGS, or any accounting. The Inventory page flags lots whose `expiry_date` is today-or-past ("Expired") or within 30 days.
+
+**Inventory lot edit / delete (`routes/inventory.py`):** A lot is *untouched* only when `remaining_quantity == quantity` and it has no rows in `order_allocations`, `inventory_adjustments`, or `return_items.restock_inventory_lot_id` (see `_lot_is_untouched()`).
+- **Untouched lot:** full edit (quantity, cost, shipping, date, expiry, notes) and delete are allowed. A full edit re-enters values in VND and normalizes `currency='VND', exchange_rate=1.0`. Both update and delete use an atomic `AND remaining_quantity = ?` guard with a rowcount check so concurrent stock changes abort the operation.
+- **Touched lot:** edit is **metadata-only** (intake date, expiry, notes) — quantity/cost/shipping are frozen; delete is refused (use a write-off to zero out remaining stock instead).
+- Editing an intake date that keeps the same calendar day preserves the original full timestamp so same-day FIFO order is not silently reshuffled.
 
 **`orders`** — `id`, `order_code`, `customer_id`, `order_status` (draft/processing/completed/cancelled), `payment_status` (not_paid/partially_paid/fully_paid), `subtotal`, `discount_amount`, `shipping_fee`, `shipping_paid_by` (customer/seller), `total_amount`.
 - `total_amount` = what the customer owes = `subtotal − discount + shipping_fee` (only if `shipping_paid_by = 'customer'`).
@@ -273,6 +280,7 @@ Backups embed `schema_version` in their filename and `backup_info.json`. When re
 - The `|vnd` Jinja filter reads session + g to format any number in the current display currency.
 - All monetary values are stored in VND internally. USD display is conversion-only.
 - Inventory intake with `currency = 'USD'` converts submitted unit cost and inbound shipping to VND using `settings.vnd_usd_rate`; `inventory.currency` stores the source currency label and `inventory.exchange_rate` stores the rate used.
+- Inventory **CSV import** applies the same USD→VND conversion at `settings.vnd_usd_rate` (a `currency=USD` row stores `cost_price`/`shipping_cost` in VND and records the rate in `exchange_rate`); rows with any currency other than VND/USD are rejected. Inventory **import and export** both carry the optional `expiry_date` column (`YYYY-MM-DD`; invalid values reject the import row).
 
 ---
 
@@ -352,7 +360,7 @@ Do not translate backend identifiers, database values, routes, status codes, acc
 
 ## Implementation Status
 
-All major features are complete and tested (880 tests passing). Full CRUD for Products, Categories, Customers, Inventory, Orders, Returns, Refunds, Payments, Reports, Export, Import. FIFO stock allocation, order state machine, customer debt, write-offs, multi-role auth, backup/restore, mobile-responsive UI, display-only English/Vietnamese UI toggle, Synology Container Manager/NAS deployment. See test files and the sections above for behavioral details.
+All major features are complete and tested (923 tests passing). Full CRUD for Products, Categories, Customers, Inventory, Orders, Returns, Refunds, Payments, Reports, Export, Import. FIFO stock allocation, order state machine, customer debt, write-offs, multi-role auth, backup/restore, mobile-responsive UI, display-only English/Vietnamese UI toggle, Synology Container Manager/NAS deployment. See test files and the sections above for behavioral details.
 
 ---
 

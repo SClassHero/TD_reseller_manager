@@ -7,14 +7,14 @@
             <th>{{ _('Total') }}</th>
             <th>{{ _('Status') }}</th>
             <th>{{ _('Payment') }}</th>
-            <th>{{ _('Action') }}</th>
+            <th>{{ _('Actions') }}</th>
         </tr>
     </thead>
     <tbody>
         {% for order in orders %}
             <tr>
                 <td data-label="{{ _('Code') }}"><strong>{{ order['order_code'] }}</strong></td>
-                <td data-label="{{ _('Date') }}">{{ order['order_date'] }}</td>
+                <td data-label="{{ _('Date') }}">{{ order['order_date'][:10] if order['order_date'] else '-' }}</td>
                 <td data-label="{{ _('Customer') }}">{{ order['customer_name'] }}</td>
                 <td data-label="{{ _('Total') }}">{{ order['total_amount']|vnd }}</td>
                 <td data-label="{{ _('Status') }}">
@@ -27,10 +27,17 @@
                         {{ _(order['payment_status']) }}
                     </span>
                 </td>
-                <td data-label="{{ _('Action') }}">
-                    <a href="{{ url_for('orders.order_detail', id=order['id']) }}" class="btn btn-sm btn-outline">
-                        {{ _('View') }}
-                    </a>
+                <td data-label="{{ _('Actions') }}">
+                    <div class="action-buttons">
+                        <a href="{{ url_for('orders.order_detail', id=order['id']) }}" class="btn btn-sm btn-outline">
+                            {{ _('View') }}
+                        </a>
+                        {% if is_admin and order['order_status'] == 'draft' %}
+                            <a href="{{ url_for('orders.edit_order', id=order['id']) }}" class="btn btn-sm btn-primary">
+                                {{ _('Edit') }}
+                            </a>
+                        {% endif %}
+                    </div>
                 </td>
             </tr>
         {% endfor %}

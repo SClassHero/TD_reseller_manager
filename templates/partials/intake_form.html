@@ -88,6 +88,14 @@
                 </div>
 
                 <div class="form-group">
+                    <label for="expiry_date">{{ _('Expiry Date') }} <small class="text-muted" style="font-weight:normal;">{{ _('optional — for perishable or dated batches') }}</small></label>
+                    <input type="date"
+                           id="expiry_date"
+                           name="expiry_date"
+                           class="form-input">
+                </div>
+
+                <div class="form-group">
                     <label for="notes">{{ _('Notes') }}</label>
                     <textarea id="notes" name="notes" class="form-input" rows="2" placeholder="{{ _('Optional notes') }}"></textarea>
                 </div>

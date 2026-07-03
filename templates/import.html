@@ -146,16 +146,17 @@ KH000003,Bob Johnson,bob@email.com,0912345678,789 Pine Rd,Central
             <h3>Expected CSV Format</h3>
             <div style="background:#f5f5f5; padding:10px; border-radius:4px; margin:10px 0; overflow-x:auto;">
                 <code style="font-size:12px;">
-product_code,quantity,cost_price,shipping_cost,currency,intake_date,notes<br>
-EL0001,100,8000000,500000,VND,2026-04-01,Initial stock<br>
-EL0002,50,15,2,USD,2026-04-02,Imported from US supplier<br>
-EL0003,20,100000,,,2026-04-03,No shipping cost
+product_code,quantity,cost_price,shipping_cost,currency,intake_date,expiry_date,notes<br>
+EL0001,100,8000000,500000,VND,2026-04-01,,Initial stock<br>
+EL0002,50,15,2,USD,2026-04-02,,Imported from US supplier<br>
+EL0003,20,100000,,,2026-04-03,2026-12-31,No shipping cost
                 </code>
             </div>
             <p class="text-muted" style="font-size:0.85rem;">
                 Use <code>product_code</code> <em>or</em> <code>product_name</code> to identify the product.<br>
-                <code>shipping_cost</code>, <code>currency</code> (VND or USD), and <code>notes</code> are optional.<br>
-                <code>intake_date</code> format: YYYY-MM-DD. Leave blank to use today's date.
+                <code>shipping_cost</code>, <code>currency</code> (VND or USD), <code>expiry_date</code>, and <code>notes</code> are optional.<br>
+                <code>intake_date</code> and <code>expiry_date</code> format: YYYY-MM-DD. Leave <code>intake_date</code> blank to use today's date.<br>
+                USD rows are converted to VND at the current exchange rate when imported.
             </p>
         </div>
 

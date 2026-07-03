@@ -8,6 +8,23 @@ App versions follow semantic versioning where practical:
 
 Database schema compatibility is tracked separately in `SCHEMA_CHANGELOG.md`.
 
+## [0.7.1] - 2026-07-03
+
+### Added
+
+- **Inventory lot expiry dates**: Optional `expiry_date` on each intake lot (perishable/dated batches). The Inventory page flags lots that are expired (today-or-past) or expiring within 30 days. Display/warning only — expiry never affects FIFO ordering, COGS, or any accounting.
+- **Inventory lot edit / delete**: Untouched lots (`remaining_quantity == quantity` and no allocations, write-offs, or restock links) can be fully edited or deleted; touched lots allow metadata-only edits (date, expiry, notes) and cannot be deleted (use a write-off instead). Same-day intake-date edits preserve the original timestamp so FIFO order is not reshuffled.
+- **Expiry in export/import**: Inventory CSV export and import both carry the `expiry_date` column; invalid expiry values reject only the offending import row.
+
+### Fixed
+
+- `import_inventory()`: USD rows previously stored the raw USD number as VND (accounting corruption). USD `cost_price` and `shipping_cost` are now converted to VND at `settings.vnd_usd_rate`, matching `create_intake()`, and the rate is recorded in `exchange_rate`. Rows with a currency other than VND/USD are now rejected.
+
+### Current Baseline
+
+- 923 documented tests passing (added `test_lot_edit_expiry.py`, 43 tests).
+- Database schema version: 6 (`inventory.expiry_date` added — see `SCHEMA_CHANGELOG.md`).
+
 ## [0.7.0] - 2026-05-05
 
 ### Added

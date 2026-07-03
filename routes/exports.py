@@ -185,7 +185,8 @@ def _fetch_orders(db):
 
 def _fetch_inventory(db):
     headers = ['Product Code', 'Product Name', 'Quantity (Original)', 'Remaining Quantity',
-               'Cost Price (VND)', 'Shipping to Warehouse (VND)', 'Currency', 'Intake Date', 'Notes']
+               'Cost Price (VND)', 'Shipping to Warehouse (VND)', 'Currency', 'Intake Date',
+               'Expiry Date', 'Notes']
     rows = db.execute('''
         SELECT p.product_code, p.name,
                i.quantity, i.remaining_quantity,
@@ -193,6 +194,7 @@ def _fetch_inventory(db):
                COALESCE(i.shipping_cost, 0),
                COALESCE(i.currency, 'VND'),
                COALESCE(i.intake_date, ''),
+               COALESCE(i.expiry_date, ''),
                COALESCE(i.notes, '')
         FROM inventory i
         JOIN products p ON i.product_id = p.id

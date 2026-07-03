@@ -15,7 +15,7 @@ Write-offs (inventory_adjustments):
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from db import generate_code, get_db
 from auth import login_required
-from datetime import datetime
+from datetime import datetime, timedelta
 from list_utils import (
     PER_PAGE_OPTIONS,
     pagination_window,
@@ -165,7 +165,7 @@ def inventory_list():
             cursor.execute(f'''
                 SELECT i.id, i.product_id, p.name as product_name, p.product_code,
                        i.quantity, i.remaining_quantity, i.cost_price, i.currency,
-                       i.shipping_cost, i.intake_date, i.notes, i.created_at
+                       i.shipping_cost, i.intake_date, i.expiry_date, i.notes, i.created_at
                 FROM inventory i
                 JOIN products p ON i.product_id = p.id
                 WHERE i.remaining_quantity != 0
@@ -197,12 +197,18 @@ def inventory_list():
         ''')
         recent_adjustments = cursor.fetchall()
 
+        now = datetime.now()
+        today_str = now.strftime('%Y-%m-%d')
+        expiry_warn_date = (now + timedelta(days=30)).strftime('%Y-%m-%d')
+
         if request.headers.get('HX-Request'):
             return render_template(
                 'partials/inventory_table.html',
                 products=page_products,
                 q=q,
                 status_filter=status_filter,
+                today_str=today_str,
+                expiry_warn_date=expiry_warn_date,
             )
 
         return render_template(
@@ -221,9 +227,39 @@ def inventory_list():
             pagination_params=pagination_params,
             sort=sort,
             direction=direction,
+            today_str=today_str,
+            expiry_warn_date=expiry_warn_date,
         )
     finally:
         db.close()
+
+
+def _parse_expiry_date(raw):
+    """Return a validated YYYY-MM-DD string or None. Invalid values are discarded."""
+    raw = (raw or '').strip()
+    if not raw:
+        return None
+    try:
+        datetime.strptime(raw, '%Y-%m-%d')
+        return raw
+    except ValueError:
+        return None
+
+
+def _lot_is_untouched(cursor, lot):
+    """Return True only when a lot has never been used by any downstream record."""
+    if lot['remaining_quantity'] != lot['quantity']:
+        return False
+    cursor.execute('SELECT COUNT(*) as cnt FROM order_allocations WHERE inventory_lot_id = ?', (lot['id'],))
+    if cursor.fetchone()['cnt'] > 0:
+        return False
+    cursor.execute('SELECT COUNT(*) as cnt FROM inventory_adjustments WHERE inventory_lot_id = ?', (lot['id'],))
+    if cursor.fetchone()['cnt'] > 0:
+        return False
+    cursor.execute('SELECT COUNT(*) as cnt FROM return_items WHERE restock_inventory_lot_id = ?', (lot['id'],))
+    if cursor.fetchone()['cnt'] > 0:
+        return False
+    return True
 
 
 @inventory_bp.route('/new')
@@ -250,6 +286,7 @@ def create_intake():
         shipping_cost = request.form.get('shipping_cost', 0.0, type=float)
         currency      = (request.form.get('currency', 'VND') or 'VND').strip().upper()
         intake_date   = request.form.get('intake_date')
+        expiry_date   = _parse_expiry_date(request.form.get('expiry_date'))
         notes         = request.form.get('notes', '').strip()
 
         if not product_id or quantity is None:
@@ -282,10 +319,10 @@ def create_intake():
             cursor.execute('''
                 INSERT INTO inventory
                     (product_id, quantity, remaining_quantity, cost_price, shipping_cost,
-                     currency, exchange_rate, intake_date, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     currency, exchange_rate, intake_date, expiry_date, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (product_id, quantity, quantity, cost_price, shipping_cost or 0.0,
-                  currency, exchange_rate, intake_date, notes))
+                  currency, exchange_rate, intake_date, expiry_date, notes))
             db.commit()
 
             qty_label = f'{quantity}' if quantity > 0 else f'{quantity} (backorder/pre-order)'
@@ -294,6 +331,154 @@ def create_intake():
             db.rollback()
             flash(f'Error creating intake: {str(e)}', 'error')
             return redirect(url_for('inventory.new_intake'))
+
+        return redirect(url_for('inventory.inventory_list'))
+    finally:
+        db.close()
+
+
+@inventory_bp.route('/<int:lot_id>/edit')
+@login_required
+def edit_intake(lot_id):
+    db = get_db()
+    try:
+        cursor = db.cursor()
+        cursor.execute('''
+            SELECT i.*, p.product_code, p.name AS product_name
+            FROM inventory i
+            JOIN products p ON i.product_id = p.id
+            WHERE i.id = ?
+        ''', (lot_id,))
+        lot = cursor.fetchone()
+        if not lot:
+            flash('Inventory lot not found.', 'error')
+            return redirect(url_for('inventory.inventory_list'))
+        full_edit = _lot_is_untouched(cursor, lot)
+        return render_template('partials/intake_edit_form.html', lot=lot, full_edit=full_edit)
+    finally:
+        db.close()
+
+
+@inventory_bp.route('/<int:lot_id>', methods=['POST'])
+@login_required
+def update_intake(lot_id):
+    db = get_db()
+    try:
+        cursor = db.cursor()
+        cursor.execute('''
+            SELECT i.*, p.product_code, p.name AS product_name
+            FROM inventory i
+            JOIN products p ON i.product_id = p.id
+            WHERE i.id = ?
+        ''', (lot_id,))
+        lot = cursor.fetchone()
+        if not lot:
+            flash('Inventory lot not found.', 'error')
+            return redirect(url_for('inventory.inventory_list'))
+
+        full_edit = _lot_is_untouched(cursor, lot)
+
+        # Metadata fields — always editable
+        intake_date_raw = request.form.get('intake_date', '').strip()
+        notes = request.form.get('notes', '').strip()
+        expiry_date = _parse_expiry_date(request.form.get('expiry_date'))
+
+        # The form submits a date-only value. If the day is unchanged, keep the original
+        # full timestamp — rewriting it to midnight would silently reorder FIFO among
+        # lots taken in on the same day.
+        intake_date = lot['intake_date']
+        if intake_date_raw:
+            existing_day = (lot['intake_date'] or '')[:10]
+            if intake_date_raw != existing_day:
+                try:
+                    intake_date = datetime.fromisoformat(intake_date_raw).isoformat()
+                except ValueError:
+                    intake_date = lot['intake_date']
+
+        try:
+            if full_edit:
+                quantity = request.form.get('quantity', type=int)
+                cost_price = request.form.get('cost_price', type=float)
+                shipping_cost = request.form.get('shipping_cost', 0.0, type=float) or 0.0
+
+                if quantity is None or quantity == 0:
+                    flash('Quantity cannot be zero.', 'error')
+                    return redirect(url_for('inventory.inventory_list'))
+
+                # Values are (re-)entered in VND, so normalize the source-currency label.
+                # The remaining_quantity guard aborts if stock moved after the untouched check.
+                cursor.execute('''
+                    UPDATE inventory
+                    SET quantity = ?, remaining_quantity = ?, cost_price = ?, shipping_cost = ?,
+                        currency = 'VND', exchange_rate = 1.0,
+                        intake_date = ?, expiry_date = ?, notes = ?
+                    WHERE id = ? AND remaining_quantity = ?
+                ''', (quantity, quantity, cost_price, shipping_cost,
+                      intake_date, expiry_date, notes, lot_id, lot['remaining_quantity']))
+                if cursor.rowcount != 1:
+                    db.rollback()
+                    flash('Stock changed before the edit could be saved. Please review the lot and try again.', 'error')
+                    return redirect(url_for('inventory.inventory_list'))
+            else:
+                cursor.execute('''
+                    UPDATE inventory
+                    SET intake_date = ?, expiry_date = ?, notes = ?
+                    WHERE id = ?
+                ''', (intake_date, expiry_date, notes, lot_id))
+
+            db.commit()
+            flash('Inventory lot updated.', 'success')
+        except Exception as e:
+            db.rollback()
+            flash(f'Error updating lot: {str(e)}', 'error')
+
+        return redirect(url_for('inventory.inventory_list'))
+    finally:
+        db.close()
+
+
+@inventory_bp.route('/<int:lot_id>/delete', methods=['POST'])
+@login_required
+def delete_intake(lot_id):
+    db = get_db()
+    try:
+        cursor = db.cursor()
+        cursor.execute('''
+            SELECT i.*, p.product_code, p.name AS product_name
+            FROM inventory i
+            JOIN products p ON i.product_id = p.id
+            WHERE i.id = ?
+        ''', (lot_id,))
+        lot = cursor.fetchone()
+        if not lot:
+            flash('Inventory lot not found.', 'error')
+            return redirect(url_for('inventory.inventory_list'))
+
+        if not _lot_is_untouched(cursor, lot):
+            flash(
+                'Cannot delete this lot — it has been used by orders, write-offs, or return restocks. '
+                'Use a write-off to zero out remaining stock instead.',
+                'error'
+            )
+            return redirect(url_for('inventory.inventory_list'))
+
+        try:
+            # remaining_quantity guard aborts if stock moved after the untouched check.
+            cursor.execute('DELETE FROM inventory WHERE id = ? AND remaining_quantity = ?',
+                           (lot_id, lot['remaining_quantity']))
+            if cursor.rowcount != 1:
+                db.rollback()
+                flash('Stock changed before the lot could be deleted. Please review the lot and try again.', 'error')
+                return redirect(url_for('inventory.inventory_list'))
+            db.commit()
+            flash(
+                f'Lot deleted: {lot["product_code"]} — {lot["quantity"]} unit(s) entered on '
+                f'{lot["intake_date"][:10] if lot["intake_date"] else "?"}.',
+                'success'
+            )
+        except Exception as e:
+            db.rollback()
+            flash(f'Error deleting lot: {str(e)}', 'error')
 
         return redirect(url_for('inventory.inventory_list'))
     finally:

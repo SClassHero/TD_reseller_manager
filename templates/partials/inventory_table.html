@@ -46,9 +46,11 @@
                                     <th>{{ _('Cost/Unit') }}</th>
                                     <th>{{ _('Whse. Shipping') }}</th>
                                     <th>{{ _('Intake Date') }}</th>
+                                    <th>{{ _('Expiry Date') }}</th>
                                     <th>{{ _('Notes') }}</th>
                                     {% if is_admin %}
-                                        <th>{{ _('Adjustment') }}</th>
+                                        <th>{{ _('Write-Off') }}</th>
+                                        <th>{{ _('Actions') }}</th>
                                     {% endif %}
                                 </tr>
                             </thead>
@@ -80,9 +82,26 @@
                                             {% endif %}
                                         </td>
                                         <td data-label="{{ _('Intake Date') }}">{{ lot.intake_date[:10] if lot.intake_date else '-' }}</td>
+                                        <td data-label="{{ _('Expiry Date') }}">
+                                            {% if lot.expiry_date %}
+                                                {% if lot.expiry_date <= today_str %}
+                                                    <span style="color:var(--danger,#dc3545); font-weight:bold;" title="{{ _('Expired') }}">
+                                                        {{ lot.expiry_date }} ⚠
+                                                    </span>
+                                                {% elif lot.expiry_date <= expiry_warn_date %}
+                                                    <span style="color:#f59e0b; font-weight:bold;" title="{{ _('Expires within 30 days') }}">
+                                                        {{ lot.expiry_date }} ⚠
+                                                    </span>
+                                                {% else %}
+                                                    {{ lot.expiry_date }}
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
                                         <td data-label="{{ _('Notes') }}">{{ lot.notes or '-' }}</td>
                                         {% if is_admin %}
-                                            <td data-label="{{ _('Adjustment') }}">
+                                            <td data-label="{{ _('Write-Off') }}">
                                                 {% if lot.remaining_quantity > 0 %}
                                                     <form method="POST"
                                                           action="{{ url_for('inventory.write_off_lot', lot_id=lot.id) }}"
@@ -110,13 +129,33 @@
                                                                aria-label="{{ _('Adjustment note') }}">
                                                         <button type="submit"
                                                                 class="btn btn-warning btn-sm"
-                                                                onclick="return confirm('{{ _('Write off stock from this lot? This reduces available stock and records a write-off cost, but does not change sales revenue or order COGS.') }}')">
+                                                                data-confirm="{{ _('Write off stock from this lot? This reduces available stock and records a write-off cost, but does not change sales revenue or order COGS.') }}"
+                                                                onclick="return confirm(this.dataset.confirm)">
                                                             {{ _('Write Off') }}
                                                         </button>
                                                     </form>
                                                 {% else %}
                                                     <span class="text-muted">{{ _('No stock') }}</span>
                                                 {% endif %}
+                                            </td>
+                                            <td data-label="{{ _('Actions') }}">
+                                                <div class="action-buttons">
+                                                    <button class="btn btn-sm btn-outline"
+                                                            hx-get="{{ url_for('inventory.edit_intake', lot_id=lot.id) }}"
+                                                            hx-target="#modal-container">
+                                                        {{ _('Edit') }}
+                                                    </button>
+                                                    <form method="POST"
+                                                          action="{{ url_for('inventory.delete_intake', lot_id=lot.id) }}"
+                                                          style="display:inline">
+                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                        <button type="submit" class="btn btn-sm btn-danger"
+                                                                data-confirm="{{ _('Delete this intake lot? This cannot be undone.') }}"
+                                                                onclick="return confirm(this.dataset.confirm)">
+                                                            {{ _('Delete') }}
+                                                        </button>
+                                                    </form>
+                                                </div>
                                             </td>
                                         {% endif %}
                                     </tr>

@@ -307,7 +307,9 @@ def import_customers():
 def import_inventory():
     """Import inventory from CSV.
     Expected columns: product_code (or product_name), quantity, cost_price,
-                      shipping_cost, currency, intake_date, notes
+                      shipping_cost, currency, intake_date, expiry_date, notes
+    USD rows are converted to VND at the current settings.vnd_usd_rate,
+    matching create_intake(); the rate used is stored in inventory.exchange_rate.
     """
     if 'file' not in request.files:
         flash('No file selected', 'error')
@@ -341,7 +343,13 @@ def import_inventory():
                 shipping_cost = row.get('shipping_cost', '0')
                 currency = row.get('currency', 'VND').strip().upper() or 'VND'
                 intake_date = row.get('intake_date', '')
+                expiry_date = (row.get('expiry_date') or '').strip()
                 notes = row.get('notes', '').strip()
+
+                if currency not in ('VND', 'USD'):
+                    errors.append(f"Row {row_num}: Invalid currency {currency!r}, use VND or USD")
+                    error_count += 1
+                    continue
 
                 # Find product
                 product_id = None
@@ -387,13 +395,33 @@ def import_inventory():
                     error_count += 1
                     continue
 
+                if expiry_date:
+                    try:
+                        datetime.strptime(expiry_date, '%Y-%m-%d')
+                    except ValueError:
+                        errors.append(f"Row {row_num}: Invalid expiry_date format, use YYYY-MM-DD")
+                        error_count += 1
+                        continue
+
+                # Convert USD costs to VND, same as create_intake()
+                exchange_rate = 1.0
+                if currency == 'USD':
+                    rate_row = cursor.execute('SELECT vnd_usd_rate FROM settings LIMIT 1').fetchone()
+                    exchange_rate = rate_row['vnd_usd_rate'] if rate_row and rate_row['vnd_usd_rate'] else 24000.0
+                    if exchange_rate <= 0:
+                        exchange_rate = 24000.0
+                    cost_price = cost_price * exchange_rate
+                    shipping_cost = shipping_cost * exchange_rate
+
                 # Insert inventory record
                 cursor.execute('''
                     INSERT INTO inventory (product_id, quantity, remaining_quantity,
-                                          cost_price, shipping_cost, currency, intake_date, notes)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                          cost_price, shipping_cost, currency, exchange_rate,
+                                          intake_date, expiry_date, notes)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (product_id, quantity, quantity, cost_price,
-                      shipping_cost, currency, intake_date, notes or None))
+                      shipping_cost, currency, exchange_rate,
+                      intake_date, expiry_date or None, notes or None))
                 db.commit()
                 success_count += 1
 

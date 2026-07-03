@@ -136,6 +136,22 @@ Backup compatibility: v1/v2/v3/v4 backups restore into v5, then `init_db()` crea
 
 ---
 
+## v6 - 2026-06-19 (inventory expiry date + lot edit/delete)
+
+`SCHEMA_VERSION = 6`
+
+### Changes from v5
+
+- Added `inventory.expiry_date` (`TEXT DEFAULT NULL`) — optional batch expiry date stored as `YYYY-MM-DD` string. Used for display and near-expiry warnings in the Inventory page. Does not affect FIFO, COGS, or any accounting calculations.
+
+### Migration notes
+
+Existing data: automatic via `init_db()`. All existing inventory lots receive `expiry_date = NULL` (no expiry set). Near-expiry warnings will not appear for these lots until an expiry date is set via the new lot Edit form.
+
+Backup compatibility: v1–v5 backups restore into v6; `init_db()` adds the column with NULL default. v6 backups embed schema version 6.
+
+---
+
 ## Template for future versions
 
 ```markdown

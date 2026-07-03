@@ -23,7 +23,7 @@ DATABASE = os.environ.get('INVENTORY_DB', 'inventory.db')
 # Increment whenever the schema changes structurally (new table, new column, type change).
 # Must match the version recorded in SCHEMA_CHANGELOG.md.
 # Backup filenames and backup_info.json embed this value for cross-version restore.
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 PREFIX_MAP = {
     'KH': ('customers', 'customer_code'),
@@ -327,6 +327,7 @@ def init_db():
                             "TEXT DEFAULT 'customer' CHECK(shipping_paid_by IN ('customer','seller'))")
         _migrate_add_column('refunds', 'return_id', 'INTEGER REFERENCES returns(id)')
         _migrate_add_column('inventory', 'shipping_cost', 'REAL DEFAULT 0')  # inbound cost to warehouse; amortized per-unit into FIFO cost
+        _migrate_add_column('inventory', 'expiry_date', 'TEXT DEFAULT NULL')  # optional batch expiry date (YYYY-MM-DD); display/warning only
         _migrate_add_column('products', 'product_code_custom', 'INTEGER DEFAULT 0')
         _migrate_add_column('settings', 'recovery_code_hash', 'TEXT')
         _migrate_add_column('settings', 'auto_backup_enabled', 'INTEGER DEFAULT 1')
