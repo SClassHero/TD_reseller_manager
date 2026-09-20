@@ -48,9 +48,9 @@ The UI can be toggled between English and Vietnamese from the top header. This i
 
 ## Current Version
 
-App version: `0.7.0`
+App version: `0.7.1`
 
-Database schema version: `5`
+Database schema version: `6`
 
 App release versions are tracked in [CHANGELOG.md](CHANGELOG.md). Database structure changes are tracked separately in [SCHEMA_CHANGELOG.md](SCHEMA_CHANGELOG.md).
 
