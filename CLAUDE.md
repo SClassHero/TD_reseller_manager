@@ -11,7 +11,7 @@ A self-hosted inventory management web app for a small Vietnamese e-commerce bus
 Built with Flask + HTMX + SQLite. Runs on a Windows PC or NAS (accessible over the local network).
 
 **Default URL:** `http://localhost:5000`
-**App version:** `0.7.0` (see `version.py` and `CHANGELOG.md`)
+**App version:** `0.7.1` (see `version.py` and `CHANGELOG.md`)
 **Database schema version:** `6` (see `db.SCHEMA_VERSION` and `SCHEMA_CHANGELOG.md`)
 **Default admin login:** username `admin`, password `admin123` (stored as a Werkzeug password hash)
 **Primary currency:** VND (Vietnamese Dong), with a live USD toggle
